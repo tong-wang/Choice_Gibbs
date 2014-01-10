@@ -30,7 +30,7 @@ W <- matrix(c(4, 0.5, 0.5, 1), nrow=M);
 
 
 ### simulate data
-N <- 1000
+N <- 500
 beta <- rmvnorm(N, mean=b, sigma=W)
 #score of choice 1 and 2 (col) by users (row) is exp(beta*X')
 score <- exp(beta %*% t(XMAT))
@@ -72,7 +72,7 @@ sample1 = function(data, parameters) {
     beta1 <- parameters$beta
     
     
-    #update posterior of W
+    #update posterior of W by conjugacy
     nu2 <- W.nu + nn
     Phi2 <- W.Phi + (t(beta1)-b1) %*% t((t(beta1)-b1))
     
@@ -80,15 +80,16 @@ sample1 = function(data, parameters) {
     W2 <- riwish(nu2, Phi2)
     
     
-    #update posterior of b
+    ## update posterior of b
+    # assume b has diffuse prior, so b'' ~ N(m.beta, W2/N)
     m.beta <- colMeans(beta1)
-    v.beta.i <- ginv(cov(beta1))
-    v.i <- ginv(b.v)
-    v2 <- ginv(v.i + nn * v.beta.i)
-    m2 <- v2 %*% (v.i %*% b.m + nn * v.beta.i %*% m.beta)
+    #v.beta.i <- ginv(cov(beta1))
+    #v.i <- ginv(b.v)
+    #v2 <- ginv(v.i + nn * v.beta.i)
+    #m2 <- v2 %*% (v.i %*% b.m + nn * v.beta.i %*% m.beta)
     
     #simulate b2
-    b2 <- as.vector(rmvnorm(1, mean=m2, sigma=v2))
+    b2 <- as.vector(rmvnorm(1, mean=m.beta, sigma=W2/nn))
     
     
 
@@ -96,11 +97,16 @@ sample1 = function(data, parameters) {
     #simulate beta2 by Metropolic-Hasting
     #parallel
     beta2 <- foreach(betai=iter(beta1, by="row"), datai=iter(data), .combine="rbind", .packages=c("MCMCpack", "mvtnorm"), .export=c("logpost.beta", "XMAT"))  %dopar%  {
+        #print(betai)
+        #print(datai)
+        #print(logpost.beta(betai, datai, b2, W2))
+        
         MCMCmetrop1R(logpost.beta, theta.init=betai,
                      data=datai, bb=b2, WW=W2,
-                     thin=1, mcmc=1, burnin=0, tune=2,
+                     thin=1, mcmc=1, burnin=100, tune=2,
                      verbose=0, logfun=TRUE)[1,]
     }
+    
     
     
     #return samples
@@ -138,18 +144,18 @@ samplen = function(data, parameters, nrun=1000) {
 ## beta ~ mvN(b, W)
 # b ~ mvN(b.m, b.v)
 b.m <- c(0, 0)
-b.v <- matrix(c(100, 0, 0, 100), nrow=M);
+#b.v <- 100 * diag(M);
 
 # W ~ iWishart(nu, Phi)
-W.nu <- 2
-W.Phi <- matrix(c(100, 0, 0, 100), nrow=M)
+W.nu <- M + 1
+W.Phi <- diag(M)
 
 
 
 #initial input (i.e., mu)
 beta0 <- rmvnorm(N, mean=b.m, sigma=W.Phi)
 param <- list(b=b.m, W=W.Phi, beta=beta0)
-nrun <- 1000
+nrun <- 100
 
 
 
@@ -210,6 +216,8 @@ hist(samples.W.truncated$X2)
 
 #plot beta
 samples.beta4 <- data.frame(z$betas[,4,])
+plot(samples.beta4$X1, type="l")
+plot(samples.beta4$X2, type="l")
 
 plot(c(1,nrun), c(-5, 5), type="n", xlab="Samples", ylab="a", xaxt="n", yaxt="n")
 lines(samples.beta4$X1, col="GREEN")
