@@ -16,156 +16,148 @@ registerDoParallel(cl)
 
 
 ### True parameters
-# Number of choices
-M <- 2
+M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
+L <- 2 # number of covariates
 
-#XMAT is the observed attributes of the alternatives.We consider two products,each product has two attributes. Therefore, XMAT is a 2X2 matrix.
-#by row: [X11 X12, X21 X22]
-XMAT <- matrix(c(0.5, 0.3, 0.4, 0.1), nrow=M, byrow=TRUE);
+#XMAT is the attributes of the alternatives; [Xij] is an M*L matrix, i=1...M, j=1...L.
+#by col: [X11 X12; X21 X22; 0, 0]
+XMAT <- matrix(c(0.5, 0.3, 
+                 0.4, 0.1,
+                 0, 0), 
+               nrow=M, ncol=L, byrow=TRUE);
 
 #true coefficient of beta~mvN(b,W)
-b <- c(-1, 3);
-W <- matrix(c(4, 0.5, 0.5, 1), nrow=M); 
+b <- c(-1, 3); # L-dimensional
+W <- matrix(c(4, 0.5, 0.5, 1), nrow=L, ncol=L); # L*L matrix
 
 
 
 ### simulate data
-N <- 500
-beta <- rmvnorm(N, mean=b, sigma=W)
-#score of choice 1 and 2 (col) by users (row) is exp(beta*X')
-score <- exp(beta %*% t(XMAT))
-#score of no-purchase is exp(0)=1
-score <- cbind(score, 1)
+N <- 1000 # number of data points
+beta <- t(rmvnorm(N, mean=b, sigma=W)) # L*N matrix
+#score of choice 1 and 2 (col) by users (row) is exp(X*beta)
+score <- exp(XMAT %*% beta) # M*N matrix
 #choice probabilities
-choice.prob <- t(apply(score, 1, function(x) x/sum(x)))
+choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
 #simulate actual choice
-choice <-  t(apply(choice.prob, 1, function(x) rmultinom(1, 1, x)))
-choice <- cbind(choice, choice %*% (1:(M+1)))
+choice.mat <- apply(choice.prob, 2, function(x) rmultinom(1, 1, x)) # M*N matrix
+choice.vec <- t(1:M) %*%  choice.mat   # N-dimensional vector
 
-colMeans(choice)
-
-
+rowMeans(choice.mat)
 
 
-##M-H log-posterior function
-#log-posterior of beta
+
+
+#log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data, bb, WW) {
     
-    logScore <- cbind(beta %*% t(XMAT), 0)
-    loglikelihood <- logScore[data] - log(sum(exp(logScore)))
+    logScore <- XMAT %*% beta
+    logLikelihood <- logScore[data] - log(sum(exp(logScore)))
 
-    logprior <- dmvnorm(beta, mean=bb, sigma=WW, log=TRUE)
+    logPrior <- dmvnorm(beta, mean=bb, sigma=WW, log=TRUE)
     
-    return(loglikelihood + logprior)
+    return(logLikelihood + logPrior)
 }
 
 
-##sampling
-#one-step sampling function
-sample1 = function(data, parameters) {
-    
-    mm <- length(parameters$b)
+
+sample = function(data, parameters, nrun=1000) {
+
+    # get dimension parameters
+    ll <- length(parameters$b)
     nn <- length(data)
     
+    # initialize arrays to save samples
+    bs = array(0, dim=c(nrun, ll))
+    Ws = array(0, dim=c(nrun, ll,ll))
+    betas = array(0, dim=c(nrun, ll, nn))
+    
+    # initial parameters
     b1 <- parameters$b
     W1 <- parameters$W
     beta1 <- parameters$beta
     
     
-    #update posterior of W by conjugacy
-    nu2 <- W.nu + nn
-    Phi2 <- W.Phi + (t(beta1)-b1) %*% t((t(beta1)-b1))
-    
-    #simulate W2
-    W2 <- riwish(nu2, Phi2)
-    
-    
-    ## update posterior of b
-    # assume b has diffuse prior, so b'' ~ N(m.beta, W2/N)
-    m.beta <- colMeans(beta1)
-    #v.beta.i <- ginv(cov(beta1))
-    #v.i <- ginv(b.v)
-    #v2 <- ginv(v.i + nn * v.beta.i)
-    #m2 <- v2 %*% (v.i %*% b.m + nn * v.beta.i %*% m.beta)
-    
-    #simulate b2
-    b2 <- as.vector(rmvnorm(1, mean=m.beta, sigma=W2/nn))
-    
-    
-
-    
-    #simulate beta2 by Metropolic-Hasting
-    #parallel
-    beta2 <- foreach(betai=iter(beta1, by="row"), datai=iter(data), .combine="rbind", .packages=c("MCMCpack", "mvtnorm"), .export=c("logpost.beta", "XMAT"))  %dopar%  {
-        #print(betai)
-        #print(datai)
-        #print(logpost.beta(betai, datai, b2, W2))
-        
-        MCMCmetrop1R(logpost.beta, theta.init=betai,
-                     data=datai, bb=b2, WW=W2,
-                     thin=1, mcmc=1, burnin=100, tune=2,
-                     verbose=0, logfun=TRUE)[1,]
-    }
-    
-    
-    
-    #return samples
-    return(list(b=b2, W=W2, beta=beta2))
-}
-
-
-samplen = function(data, parameters, nrun=1000) {
-    mm <- length(parameters$b)
-    nn <- length(data)
-    
-    bs = array(0, dim=c(nrun, mm))
-    Ws = array(0, dim=c(nrun, mm, mm))
-    betas = array(0, dim=c(nrun, nn, mm))
-    
-    
+    # start sampling loop
     for(i in 1:nrun) {
-        z = sample1(data, parameters)
-        bs[i,] = z$b
-        Ws[i,,] = z$W
-        betas[i,,] = z$beta
+
+        #update posterior of W by conjugacy
+        nu2 <- W.nu + nn
+        Psi2 <- W.Psi + (beta1-b1) %*% t(beta1-b1)
         
-        parameters = list(b=z$b, W=z$W, beta=z$beta)
+        #simulate W2
+        W2 <- riwish(nu2, Psi2)
+        
+        
+        ## update posterior of b
+        # sample mean of beta
+        m.beta <- rowMeans(beta1)
+        
+        # assume b has diffuse prior, so b'' ~ N(m.beta, W2/N)
+        #simulate b2
+        b2 <- as.vector(rmvnorm(1, mean=m.beta, sigma=W2/nn))
+        
+        
+        #simulate beta2 by Metropolic-Hasting
+        #parallel
+        beta2 <- foreach(betai=iter(beta1, by="column"), datai=iter(data, by="column"), .combine="cbind", .packages=c("MCMCpack", "mvtnorm"), .export=c("logpost.beta", "XMAT"))  %dopar%  {
+            #print(betai)
+            #print(datai)
+            #print(logpost.beta(as.vector(betai), as.vector(datai), b2, W2))
+            
+            MCMCmetrop1R(logpost.beta, theta.init=betai,
+                         data=datai, bb=b2, WW=W2,
+                         thin=1, mcmc=1, burnin=500, tune=2,
+                         verbose=0, logfun=TRUE)[1,]
+        }
+        
+        
+
+        
+        # save the samples obtained in the current iteration
+        bs[i,] = b2
+        Ws[i,,] = W2
+        betas[i,,] = beta2
+        
+        cat("Run:", i, "\tb:", b2, "\tW:", W2, "\n", sep=" ")
+        
+        b1 <- b2
+        W1 <- W2
+        beta1 <- beta2
     }
     
     # results
-    output <- list(bs=bs, Ws=Ws, betas=betas)
-    return(output)
-} # end function 'samplen'
+    return(list(bs=bs, Ws=Ws, betas=betas))
+
+} # end function 'sample'
 
 
 
 
 ### initialize input before sampling
 ## beta ~ mvN(b, W)
-# b ~ mvN(b.m, b.v)
-b.m <- c(0, 0)
-#b.v <- 100 * diag(M);
-
-# W ~ iWishart(nu, Phi)
-W.nu <- M + 1
-W.Phi <- diag(M)
+# b has a diffuse prior
+# W ~ iWishart(nu, Psi)
+W.nu <- L
+W.Psi <- diag(L) * L
 
 
-
-#initial input (i.e., mu)
-beta0 <- rmvnorm(N, mean=b.m, sigma=W.Phi)
-param <- list(b=b.m, W=W.Phi, beta=beta0)
-nrun <- 100
+## initial sampling input
+param0 <- list(b=c(0, 0), W=W.Psi, beta=t(rmvnorm(N, mean=c(0, 0), sigma=W.Psi/W.nu)))
+nrun <- 10000
 
 
 
-#sample
-z <- samplen(data=choice[,4], parameters=param, nrun=nrun)
+### sample
+z <- sample(data=choice.vec, parameters=param0, nrun=nrun)
+
+
+
 
 stopCluster(cl)
 
 
-## Visualize results
+### Visualize results
 burnin <- 0.1*nrun
 
 #plot b
