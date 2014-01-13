@@ -1,54 +1,47 @@
-####
-# Standard Multinomial Logit model
+################################################################
+# Standard Multinomial Logit
 #   Estimation using Metropolic-Hasting algorithm
-####
+#
+# Setup:
+#   -- M alternatives
+#   -- Utility of alternative i is U_i = S_i + epsilon
+#   -- Task: estimate S (M-dimensional vector)
+#
+# Note:
+#   -- The last alternative has zero X (this is a dummy for the no-purchase option), which helps to normalize the utilities.
+################################################################
 
 Sys.setenv(LANG = "en")
 setwd("~/Dropbox/RCode/Choice_Gibbs.git/test")
 
 require("MCMCpack")
-require("mvtnorm")
 
 
-### True parameters (M>=L for identifiability)
+### True parameters
 M <- 6 # number of alternatives (the last alternative is dummy for no-purchase)
-L <- 3 # number of covariates
 
-#XMAT is the attributes of the alternatives; [Xij] is an M*L matrix, i=1...M, j=1...L.
-#by col: [X11 X12; X21 X22; 0, 0]
-XMAT <- matrix(c(4, 3, 5, 
-                 6, 1, 2, 
-                 2, 2, 3,
-                 5, 4, 2,
-                 4, 6, 7,
-                 1, 3, 2),
-               nrow=M, ncol=L, byrow=TRUE);
-
-#true coefficient of beta
-beta <- c(0.06, 0.04, 0.03); # L-dimensional
+#true coefficient of S
+S <- c(1, 2, 3, 1.6, 2.3, 0); # L-dimensional
 
 
 ### simulate data
 N <- 50000 # number of data points
 #score of choice 1 and 2 (col) by users (row) is exp(X*beta)
-score <- exp(XMAT %*% beta)
+score <- exp(S)
 #choice probabilities
 choice.prob <- score / sum(score)
 #simulate actual choice
-choice.mat <- rmultinom(N, 1, choice.prob)
-choice.vec <- t(1:M) %*%  choice.mat   # N-dimensional vector
-
-rowMeans(choice.mat)
-data <- rowSums(choice.mat)
+data <- rmultinom(1, N, choice.prob)
 
 
 
 
 ### M-H sampling
-#log-posterior of beta, to be called by M-H algorithm
-logpost.beta <- function(beta, data) {
+# log-posterior of beta, to be called by M-H algorithm
+# assuming diffuse prior
+logpost.beta <- function(s, data) {
     
-    score <- exp(XMAT %*% beta)
+    score <- exp(c(s,0))
     choice.prob <- score / sum(score)
 
     logLikelihood <- 0
@@ -62,16 +55,14 @@ logpost.beta <- function(beta, data) {
 
 
 #sampling
-z <- MCMCmetrop1R(logpost.beta, theta.init=rep(0,L),
+z <- MCMCmetrop1R(logpost.beta, theta.init=rep(0, M-1),
              data=data,
-             thin=10, mcmc=100000, burnin=1000, tune=1.2,
+             thin=10, mcmc=100000, burnin=10000, tune=1,
              verbose=10000, logfun=TRUE)
 
 
 summary(z)
 plot(z)
 
-beta.estm <- colMeans(z)
-score.estm <- exp(XMAT %*% beta.estm)
-choice.prob.estm <- score.estm / sum(score.estm)
-choice.prob.estm
+S.estm <- colMeans(z)
+S.estm
