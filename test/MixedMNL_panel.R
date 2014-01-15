@@ -1,10 +1,13 @@
 ####
-# Scenario 0. All choices are observed 
-#
+# Mixed MNL with panel data
+# -- M alternatives
+# -- L covariates for each alternative
+# -- K individuals
+# -- N obeservations for each individual (total is N*K)
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/test")
 
 require("MCMCpack")
 require("mvtnorm")
@@ -32,26 +35,28 @@ W <- matrix(c(0.04, -0.01, -0.01, 0.01), nrow=L, ncol=L); # L*L matrix
 
 
 ### simulate data
-N <- 10000 # number of data points
-beta <- t(rmvnorm(N, mean=b, sigma=W)) # L*N matrix
+K <- 100
+N <- 500 # number of data points for each individual
+beta <- t(rmvnorm(K, mean=b, sigma=W)) # L*K matrix
 #score of choice 1 and 2 (col) by users (row) is exp(X*beta)
-score <- exp(XMAT %*% beta) # M*N matrix
+score <- exp(XMAT %*% beta) # M*K matrix
 #choice probabilities
-choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
+choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*K matrix
 #simulate actual choice
-choice.mat <- apply(choice.prob, 2, function(x) rmultinom(1, 1, x)) # M*N matrix
+choice.mat <- foreach(p=iter(choice.prob, by="column"), .combine="cbind") %do% rmultinom(N, 1, p) # M*(K*N) matrix
 choice.vec <- t(1:M) %*%  choice.mat   # N-dimensional vector
 
 rowMeans(choice.mat)
 
 
 
-
 #log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data, bb, WW) {
     
+    nn <- length(data)
+    
     logScore <- XMAT %*% beta
-    logLikelihood <- logScore[data] - log(sum(exp(logScore)))
+    logLikelihood <- sum(logScore[data]) - nn*log(sum(exp(logScore)))
 
     logPrior <- dmvnorm(beta, mean=bb, sigma=WW, log=TRUE)
     
@@ -63,13 +68,14 @@ logpost.beta <- function(beta, data, bb, WW) {
 sample = function(data, parameters, nrun=1000) {
 
     # get dimension parameters
+    kk <- ncol(parameters$beta)
     ll <- length(parameters$b)
-    nn <- length(data)
+    nn <- length(data) / kk
     
     # initialize arrays to save samples
     bs = array(0, dim=c(nrun, ll))
     Ws = array(0, dim=c(nrun, ll,ll))
-    betas = array(0, dim=c(nrun, ll, nn))
+    betas = array(0, dim=c(nrun, ll, kk))
     
     # initial parameters
     b1 <- parameters$b
@@ -81,7 +87,7 @@ sample = function(data, parameters, nrun=1000) {
     for(i in 1:nrun) {
 
         #update posterior of W by conjugacy
-        nu2 <- W.nu + nn
+        nu2 <- W.nu + kk
         Psi2 <- W.Psi + (beta1-b1) %*% t(beta1-b1)
         
         #simulate W2
@@ -94,15 +100,14 @@ sample = function(data, parameters, nrun=1000) {
         
         # assume b has diffuse prior, so b'' ~ N(m.beta, W2/N)
         #simulate b2
-        b2 <- as.vector(rmvnorm(1, mean=m.beta, sigma=W2/nn))
+        b2 <- as.vector(rmvnorm(1, mean=m.beta, sigma=W2/kk))
         
         
         #simulate beta2 by Metropolic-Hasting
         #parallel
-        beta2 <- foreach(betai=iter(beta1, by="column"), datai=iter(data, by="column"), .combine="cbind", .packages=c("MCMCpack", "mvtnorm"), .export=c("logpost.beta", "XMAT"))  %dopar%  {
-            #print(betai)
-            #print(datai)
-            #print(logpost.beta(as.vector(betai), as.vector(datai), b2, W2))
+        beta2 <- foreach(i=1:kk, .combine="cbind", .packages=c("MCMCpack", "mvtnorm"), .export=c("logpost.beta", "XMAT"))  %dopar%  {
+            betai <- beta1[, i]
+            datai <- data[ , ((i-1)*nn+1) : (i*nn) ]
             
             MCMCmetrop1R(logpost.beta, theta.init=betai,
                          data=datai, bb=b2, WW=W2,
@@ -142,8 +147,8 @@ W.Psi <- diag(L) * L
 
 
 ## initial sampling input
-param0 <- list(b=c(0, 0), W=W.Psi, beta=t(rmvnorm(N, mean=c(0, 0), sigma=W.Psi/W.nu)))
-nrun <- 1000
+param0 <- list(b=c(0, 0), W=W.Psi, beta=t(rmvnorm(K, mean=c(0, 0), sigma=W.Psi/W.nu)))
+nrun <- 1000 
 
 
 
@@ -154,8 +159,8 @@ stopCluster(cl)
 
 
 ### test results
-b2 <- c(-1.835909, 1.347521)
-W2 <-  matrix(c(0.1995626, 0.2219391, 0.2219391, 0.2571687), nrow=L, ncol=L)
+b2 <- c(-0.1209703,  0.9631734)
+W2 <-  matrix(c(0.9855950, -0.3019826, -0.3019826,  0.5365939), nrow=L, ncol=L)
 beta2 <- t(rmvnorm(N, mean=b2, sigma=W2)) # L*N matrix
 score2 <- exp(XMAT %*% beta2) # M*N matrix
 choice.prob2 <- apply(score2, 2, function(x) x/sum(x)) # M*N matrix

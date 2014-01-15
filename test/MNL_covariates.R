@@ -18,21 +18,21 @@ require("MCMCpack")
 
 
 ### True parameters (M>=L for identifiability)
-M <- 6 # number of alternatives (the last alternative is dummy for no-purchase)
-L <- 3 # number of covariates
+M <- 3 #6 # number of alternatives (the last alternative is dummy for no-purchase)
+L <- 2 # number of covariates
 
 #XMAT is the attributes of the alternatives; [Xij] is an M*L matrix, i=1...M, j=1...L.
 #by col: [X11 X12; X21 X22; 0, 0]
-XMAT <- matrix(c(4, 3, 5, 
-                 6, 1, 2, 
-                 2, 2, 3,
-                 5, 4, 2,
-                 4, 6, 7,
-                 0, 0, 0),
+XMAT <- matrix(c(0.4, 0.3, #5, 
+                 0.6, 0.1, #2, 
+                 #2, 2, 3,
+                 #5, 4, 2,
+                 #4, 6, 7,
+                 0, 0),
                nrow=M, ncol=L, byrow=TRUE);
 
 #true coefficient of beta
-beta <- c(0.06, 0.04, 0.03); # L-dimensional
+beta <- c(0.6, 0.3); # L-dimensional
 
 
 ### simulate data
@@ -72,7 +72,7 @@ logpost.beta <- function(beta, data) {
 #sampling
 z <- MCMCmetrop1R(logpost.beta, theta.init=rep(0, L),
              data=data,
-             thin=10, mcmc=100000, burnin=1000, tune=1.2,
+             thin=10, mcmc=100000, burnin=1000, tune=1.5,
              verbose=10000, logfun=TRUE)
 
 
