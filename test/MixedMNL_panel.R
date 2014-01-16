@@ -1,4 +1,5 @@
 ####
+# [UNIDENTIFIABLE]
 # Mixed MNL with panel data
 # -- M alternatives
 # -- L covariates for each alternative

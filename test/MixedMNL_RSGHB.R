@@ -1,4 +1,5 @@
 ####
+# [UNIDENTIFIABL]
 # Mixed Multinomial Logit Model
 #   Estimation using the RSGHB package
 #   follows example 2 of http://cran.r-project.org/web/packages/RSGHB/vignettes/RSGHB_HowTo.pdf
@@ -10,7 +11,7 @@ setwd("~/Dropbox/RCode/Choice_Gibbs.git/test")
 
 
 require("RSGHB")
-
+require("mvtnorm")
 
 
 ### True parameters
@@ -25,12 +26,12 @@ XMAT <- matrix(c(0.4, 0.3,
                nrow=M, ncol=L, byrow=TRUE);
 
 #true coefficient of beta~mvN(b,W)
-b <- c(0.8, 0.2); # L-dimensional
+b <- c(0.6, 0.3); # L-dimensional
 W <- matrix(c(0.04, -0.01, -0.01, 0.01), nrow=L, ncol=L); # L*L matrix
 
 
 ### simulate data
-N <- 10000 # number of data points
+N <- 100000 # number of data points
 beta <- t(rmvnorm(N, mean=b, sigma=W)) # L*N matrix
 #score of choice 1 and 2 (col) by users (row) is exp(X*beta)
 score <- exp(XMAT %*% beta) # M*N matrix
