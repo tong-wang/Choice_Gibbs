@@ -14,7 +14,7 @@ require("mvtnorm")
 ### Known parameters
 M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
 L <- 2 # number of covariates
-K <- 60 # number of periods
+K <- 120 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
 #by row: [X11 X12; X21 X22]
@@ -66,23 +66,54 @@ logpost.beta <- function(beta, data) {
 }
 
 
-logpost.d0 <- function(d0, data, lambda, beta) {
+logpost.d0 <- function(d0, data, lambda, beta, k) {
     
-    score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
-    choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
+    score <-  exp(matrix(c(X_Mat[k,],0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta)
+    choice.prob <- score/sum(score) # M*N matrix
     
-    dd <- rbind(data,d0)
-    nn <- as.integer(colSums(dd))
+    dd <- c(data,d0)
+    nn <- sum(dd)
 
-    choice.ll <- rep(0,K)
-    for (k in 1:K) {
-        choice.ll[k] <- dmultinom(x=dd[, k], prob=choice.prob[, k], log=TRUE)    
-    }    
-
-    logLikelihood <- sum(choice.ll) + sum(dpois(nn, lambda, log=TRUE))
-    
-    return(sum(logLikelihood))
+    #choice.ll <- rep(0,K)
+    #for (k in 1:K) {
+    #    choice.ll[k] <- dmultinom(x=dd[, k], prob=choice.prob[, k], log=TRUE)    
+    #}    
+    return(dmultinom(x=dd, prob=choice.prob, log=TRUE) + dpois(nn, lambda, log=TRUE))
 }
+
+#implementation of discrete Metropolic-Hastings with Negative Binomial proposal
+discreteMH <-function (logpost, proposal, start, m, ...) 
+{
+    pb = length(start)
+    Mpar = array(0, c(m, pb))
+    b = matrix(t(start))
+    lb = logpost(start, ...)
+    
+    size = proposal$size
+    
+    accept = 0
+    for (i in 1:m) {
+        #bc = b + scale * t(a) %*% array(rnorm(pb), c(pb, 1))
+        bc <- rnbinom(pb, size=size, mu=b)
+        
+        lbc = logpost(t(bc), ...) 
+        
+        prob = exp(lbc + dnbinom(b, size=size, mu=bc, log=TRUE) - lb - dnbinom(bc, size=size, mu=b, log=TRUE) )
+        
+        if (is.na(prob) == FALSE) {
+            if (runif(1) < prob) {
+                lb = lbc
+                b = bc
+                accept = accept + 1
+            }
+        }
+        Mpar[i, ] = b
+    }
+    accept = accept/m
+    stuff = list(par = Mpar, accept = accept)
+    return(stuff)
+}
+
 
 
 
@@ -115,17 +146,16 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(data,d01),
-                         thin=1, mcmc=1, burnin=0, tune=2,
+                         thin=1, mcmc=1, burnin=1000, tune=2,
                          verbose=0, logfun=TRUE)[1,]
 
 
-        #simulate d0 by Metropolis-Hastings
-        ######NEED DISCRETE M-H ALGORITHM HERE!!!!#######
-        d02 <- MCMCmetrop1R(logpost.d0, theta.init=d01,
-                              data=data, lambda=lambda2, beta=beta2,
-                              thin=1, mcmc=1, burnin=0, tune=2,
-                              verbose=0, logfun=TRUE)[1,]
-        
+        #simulate d0 by discrete Metropolis-Hastings
+        d02 <- rep(0, K)
+        for (j in 1:K) {
+            d02[j] <- discreteMH(logpost.d0, proposal=list(size=10), start=d01[j], m=1000, 
+                             data=data[,j], lambda=lambda2, beta=beta2, k=j)$par[1000]
+        }
         
         
 
@@ -142,7 +172,7 @@ sample = function(data, parameters, nrun=1000) {
     }
     
     # results
-    return(list(bs=bs, Ws=Ws, betas=betas))
+    return(list(lambdas=lambdas, d0s=d0s, betas=betas))
 
 } # end function 'sample'
 
@@ -158,8 +188,8 @@ lambda.beta <- 0.01
 
 
 ## initial sampling input
-param0 <- list(beta=rep(0, L), lambda=lambda.alpha/lambda.beta, d0=rep(0,K))
-nrun <- 1000
+param0 <- list(beta=rep(0, L), lambda=lambda.alpha/lambda.beta, d0=rep(10,K))
+nrun <- 10000
 
 
 
@@ -168,86 +198,66 @@ z <- sample(data=observation1, parameters=param0, nrun=nrun)
 
 
 
-stopCluster(cl)
-
-
-### test results
-b2 <- c(-1.835909, 1.347521)
-W2 <-  matrix(c(0.1995626, 0.2219391, 0.2219391, 0.2571687), nrow=L, ncol=L)
-beta2 <- t(rmvnorm(N, mean=b2, sigma=W2)) # L*N matrix
-score2 <- exp(XMAT %*% beta2) # M*N matrix
-choice.prob2 <- apply(score2, 2, function(x) x/sum(x)) # M*N matrix
-choice.mat2 <- apply(choice.prob2, 2, function(x) rmultinom(1, 1, x)) # M*N matrix
-rowMeans(choice.mat2)
-rowMeans(choice.mat)
-
+#stopCluster(cl)
 
 
 
 ### Visualize results
 burnin <- 0.1*nrun
 
-#plot b
-#samples.b <- data.frame(matrix(unlist(z$bs), ncol=ncol(beta), byrow=T))
-samples.b <- data.frame(z$bs)
-plot(samples.b$X1, type="l")
-plot(samples.b$X2, type="l")
-
-plot(c(1,nrun), c(-2, 4), type="n", xlab="Samples", ylab="a", xaxt="n", yaxt="n")
-lines(samples.b$X1, col="GREEN")
-lines(samples.b$X2, col="RED")
-axis(side=1)
-axis(side=2)
-
-samples.b.truncated <- samples.b[burnin:nrun,]
-quantile(samples.b.truncated$X1, c(.025,.5,.975))
-quantile(samples.b.truncated$X2, c(.025,.5,.975))
-colMeans(samples.b.truncated)
-hist(samples.b.truncated$X1)
-hist(samples.b.truncated$X2)
+#plot lambda
+samples.lambda <- z$lambdas
+plot(samples.lambda, type="l")
 
 
-#plot W
-#samples.W <- data.frame(matrix(unlist(z$Ws), ncol=4, byrow=T))
-samples.W <- data.frame(matrix(z$Ws, ncol=4))
-plot(samples.W$X1, type="l")
-plot(samples.W$X4, type="l")
-plot(samples.W$X2, type="l")
-
-plot(c(1,nrun), c(0, 5), type="n", xlab="Samples", ylab="a", xaxt="n", yaxt="n")
-lines(samples.W$X1, col="GREEN")
-lines(samples.W$X4, col="RED")
-lines(samples.W$X2, col="BLUE")
-axis(side=1)
-axis(side=2)
-
-samples.W.truncated <- samples.W[burnin:nrun,]
-quantile(samples.W.truncated$X1, c(.025,.5,.975))
-quantile(samples.W.truncated$X2, c(.025,.5,.975))
-quantile(samples.W.truncated$X4, c(.025,.5,.975))
-colMeans(samples.W.truncated)
-hist(samples.W.truncated$X1)
-hist(samples.W.truncated$X4)
-hist(samples.W.truncated$X2)
-
+samples.lambda.truncated <- samples.lambda[burnin:nrun,]
+quantile(samples.lambda.truncated, c(.025,.5,.975))
+mean(samples.lambda.truncated)
+hist(samples.lambda.truncated)
 
 
 
 #plot beta
-samples.beta4 <- data.frame(z$betas[,,4])
-plot(samples.beta4$X1, type="l")
-plot(samples.beta4$X2, type="l")
+samples.beta <- data.frame(z$betas)
+plot(samples.beta$X1, type="l")
+plot(samples.beta$X2, type="l")
 
-plot(c(1,nrun), c(-5, 5), type="n", xlab="Samples", ylab="a", xaxt="n", yaxt="n")
-lines(samples.beta4$X1, col="GREEN")
-lines(samples.beta4$X2, col="BLUE")
+plot(c(1,nrun), c(-0.05, 0.2), type="n", xlab="Samples", ylab="a", xaxt="n", yaxt="n")
+lines(samples.beta$X1, col="GREEN")
+lines(samples.beta$X2, col="BLUE")
 axis(side=1)
 axis(side=2)
 
-samples.beta4.truncated <- samples.beta4[burnin:nrun,]
-quantile(samples.beta4.truncated$X1, c(.025,.5,.975))
-quantile(samples.beta4.truncated$X2, c(.025,.5,.975))
-colMeans(samples.beta4.truncated)
-hist(samples.beta4.truncated$X1)
-hist(samples.beta4.truncated$X2)
+samples.beta.truncated <- samples.beta[burnin:nrun,]
+quantile(samples.beta.truncated$X1, c(.025,.5,.975))
+quantile(samples.beta.truncated$X2, c(.025,.5,.975))
+colMeans(samples.beta.truncated)
+hist(samples.beta.truncated$X1)
+hist(samples.beta.truncated$X2)
+
+
+
+#plot d0[1]
+samples.d0 <- data.frame(z$d0s[,1:5])
+plot(samples.d0$X1, type="l")
+plot(samples.d0$X2, type="l")
+plot(samples.d0$X3, type="l")
+plot(samples.d0$X4, type="l")
+plot(samples.d0$X5, type="l")
+
+
+samples.d0.truncated <- samples.d0[burnin:nrun,]
+quantile(samples.d0.truncated$X1, c(.025,.5,.975))
+quantile(samples.d0.truncated$X2, c(.025,.5,.975))
+quantile(samples.d0.truncated$X3, c(.025,.5,.975))
+quantile(samples.d0.truncated$X4, c(.025,.5,.975))
+quantile(samples.d0.truncated$X5, c(.025,.5,.975))
+colMeans(samples.d0.truncated)
+hist(samples.d0.truncated$X1)
+hist(samples.d0.truncated$X2)
+hist(samples.d0.truncated$X3)
+hist(samples.d0.truncated$X4)
+hist(samples.d0.truncated$X5)
+
+
 
