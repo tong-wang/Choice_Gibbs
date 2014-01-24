@@ -11,11 +11,11 @@ discreteMH <-function (logpost, proposal, start, m, ...)
     
     accept = 0
     for (i in 1:m) {
-        #bc = b + scale * t(a) %*% array(rnorm(pb), c(pb, 1))
+        #proposed next point is Negative Binomial using the current position as its mean, variance is controled by $size$
         bc <- rnbinom(pb, size=size, mu=b)
         
         lbc = logpost(t(bc), ...) 
-        
+        #since proposal is asymmetric, need to adjust the jumping probability accordingly        
         prob = exp(lbc + dnbinom(b, size=size, mu=bc, log=TRUE) - lb - dnbinom(bc, size=size, mu=b, log=TRUE) )
         
         if (is.na(prob) == FALSE) {

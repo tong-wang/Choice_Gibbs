@@ -14,7 +14,7 @@ require("mvtnorm")
 ### Known parameters
 M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
 L <- 2 # number of covariates
-K <- 120 # number of periods
+K <- 360 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
 #by row: [X11 X12; X21 X22]
@@ -93,11 +93,11 @@ discreteMH <-function (logpost, proposal, start, m, ...)
     
     accept = 0
     for (i in 1:m) {
-        #bc = b + scale * t(a) %*% array(rnorm(pb), c(pb, 1))
+        #proposed next point is Negative Binomial using the current position as its mean, variance is controled by $size$
         bc <- rnbinom(pb, size=size, mu=b)
         
         lbc = logpost(t(bc), ...) 
-        
+        #since proposal is asymmetric, need to adjust the jumping probability accordingly
         prob = exp(lbc + dnbinom(b, size=size, mu=bc, log=TRUE) - lb - dnbinom(bc, size=size, mu=b, log=TRUE) )
         
         if (is.na(prob) == FALSE) {
@@ -238,7 +238,7 @@ hist(samples.beta.truncated$X2)
 
 
 #plot d0[1]
-samples.d0 <- data.frame(z$d0s[,1:5])
+samples.d0 <- data.frame(z$d0s)
 plot(samples.d0$X1, type="l")
 plot(samples.d0$X2, type="l")
 plot(samples.d0$X3, type="l")
