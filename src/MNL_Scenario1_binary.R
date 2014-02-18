@@ -1,5 +1,5 @@
 ####
-# Scenario 1. No-purchase is not observed 
+# Scenario 1. No-purchase is not observed (Binary Choice case)
 #
 ####
 
@@ -12,22 +12,22 @@ require("mvtnorm")
 
 
 ### Known parameters
-M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
-L <- 2 # number of covariates
-K <- 60 # number of periods
+M <- 2 # number of alternatives (alternative 3 is dummy for no-purchase)
+L <- 1 # number of covariates
+K <- 360 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
-#by row: [X11 X12; X21 X22]
-X_Mean <- c(4, 3, 6, 1)
+#by row: [X11 X12]
+X_Mean <- 5
 
 #for each of the K periods, generate an X matrix
 #dim of X_Mat is K, (M-1)*L
-X_Mat <- rmvnorm(K, mean=X_Mean)
+X_Mat <- rnorm(K, mean=X_Mean)
 
 
 ## true values of the parameters to be estimated
 # beta is the MNL coefficient
-beta <- c(0.06, 0.03); # L-dimensional
+beta <- 0.1; # L-dimensional
 # lambda is the poisson demand rate in each perid
 lambda <- 100
 
@@ -38,7 +38,8 @@ N <- rpois(K, lambda)
 
 #in each period, score of choice 1 and 2 (col) is exp(X*beta)
 #dim of score is M by K
-score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
+score <- rbind(exp(X_Mat * beta), rep(1, K))
+
 #choice probabilities in each period (M by K)
 choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
 #simulate actual choice in each period (M by K)
@@ -56,7 +57,7 @@ observation1 <- choice.mat[1:M-1,]
 #log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
     
-    score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
+    score <- rbind(exp(X_Mat * beta), rep(1, K))
     choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
     
 
@@ -68,7 +69,8 @@ logpost.beta <- function(beta, data) {
 
 logpost.d0 <- function(d0, data, lambda, beta, k) {
     
-    score <-  exp(matrix(c(X_Mat[k,],0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta)
+    #score <-  exp(matrix(c(X_Mat[k,],0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta)
+    score <- c(exp(X_Mat[k] * beta), 1)
     choice.prob <- score/sum(score) # M*N matrix
     
     dd <- c(data,d0)
@@ -146,7 +148,7 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(data,d01),
-                         thin=1, mcmc=1, burnin=1000, tune=2,
+                         thin=1, mcmc=1, burnin=1000, tune=3,
                          verbose=0, logfun=TRUE)[1,]
 
 
@@ -154,7 +156,7 @@ sample = function(data, parameters, nrun=1000) {
         d02 <- rep(0, K)
         for (j in 1:K) {
             d02[j] <- discreteMH(logpost.d0, proposal=list(size=10), start=d01[j], m=1000, 
-                            data=data[,j], lambda=lambda2, beta=beta2, k=j)$par[1000]
+                            data=data[j], lambda=lambda2, beta=beta2, k=j)$par[1000]
         }
         
         
@@ -189,7 +191,7 @@ lambda.beta <- 0.01
 
 ## initial sampling input
 param0 <- list(beta=rep(0, L), lambda=lambda.alpha/lambda.beta, d0=rep(10,K))
-nrun <- 10000
+nrun <- 2000
 
 
 
