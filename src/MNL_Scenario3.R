@@ -14,7 +14,7 @@ require("mvtnorm")
 ### Known parameters
 M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
 L <- 2 # number of covariates
-K <- 60 # number of periods
+K <- 180 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
 #by row: [X11 X12; X21 X22]
@@ -62,14 +62,15 @@ observation3 <- list(sales = choice.mat[1:M-1,], traffic=traffic)
 
 #log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
-    
+
     score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
     choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
     
-
     logLikelihood <- data*log(choice.prob)
     
-    return(sum(logLikelihood))
+    logprior <- dmvnorm(log(beta), mean=beta.mu, sigma=beta.sg, log=TRUE)
+        
+    return(sum(logLikelihood) + logprior)
 }
 
 
@@ -156,7 +157,7 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=1000, tune=2,
+                         thin=1, mcmc=1, burnin=500, tune=2,
                          verbose=0, logfun=TRUE)[1,]
 
 
@@ -172,8 +173,8 @@ sample = function(data, parameters, nrun=1000) {
         d02 <- rep(0, K)
         for (j in 1:K) {
             dataj <- list(sales=sales[,j], traffic=traffic[j])
-            d02[j] <- discreteMH(logpost.d0, proposal=list(size=10), start=d01[j], m=1000, 
-                            data=dataj, lambda=lambda2, beta=beta2, k=j, eps.mu=eps.mu2, eps.sd=eps.sd2)$par[1000]
+            d02[j] <- discreteMH(logpost.d0, proposal=list(size=10), start=d01[j], m=500, 
+                            data=dataj, lambda=lambda2, beta=beta2, k=j, eps.mu=eps.mu2, eps.sd=eps.sd2)$par[500]
         }
         
         
@@ -203,7 +204,9 @@ sample = function(data, parameters, nrun=1000) {
 
 
 ### initialize input before sampling
-# b has a diffuse prior
+# beta prior ~ logN(beta.mu, beta.sg)
+beta.mu <- c(-2.5, -2.5)
+beta.sg <- matrix(c(0.5, 0, 0, 0.5), 2, 2)
 
 # lambda ~ Gamma(lambda.alpha, lambda.beta)
 lambda.alpha <- 0.5
@@ -214,7 +217,7 @@ eps.pr.alpha0 <- 0.2
 eps.pr.beta0 <- 0.1
 
 ## initial sampling input
-param0 <- list(beta=rep(0, L), d0=rep(10,K), eps.sd=eps.pr.alpha0/eps.pr.beta0)
+param0 <- list(beta=rep(0.1, L), d0=rep(10,K), eps.sd=eps.pr.alpha0/eps.pr.beta0)
 nrun <- 10000
 
 
@@ -222,7 +225,7 @@ nrun <- 10000
 ### sample
 z <- sample(data=observation3, parameters=param0, nrun=nrun)
 
-
+save.image(file="MNL_Scenario3_1.RData")
 
 #stopCluster(cl)
 
@@ -286,4 +289,16 @@ hist(samples.d0.truncated$X4)
 hist(samples.d0.truncated$X5)
 
 
+
+#plot eps.mu and eps.sd
+samples.eps <- data.frame(mu=z$eps.mus, sd=z$eps.sds)
+plot(samples.eps$mu, type="l")
+plot(samples.eps$sd, type="l")
+
+samples.eps.truncated <- samples.eps[burnin:nrun,]
+quantile(samples.eps.truncated$mu, c(.025,.5,.975))
+quantile(samples.eps.truncated$sd, c(.025,.5,.975))
+colMeans(samples.eps.truncated)
+hist(samples.eps.truncated$mu)
+hist(samples.eps.truncated$sd)
 
