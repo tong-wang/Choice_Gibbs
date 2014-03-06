@@ -63,14 +63,18 @@ observation3 <- list(sales = choice.mat[1:M-1,], traffic=traffic)
 #log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
 
-    score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
-    choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
-    
-    logLikelihood <- data*log(choice.prob)
-    
-    logprior <- dmvnorm(log(beta), mean=beta.mu, sigma=beta.sg, log=TRUE)
+    if (any(beta<=0))
+        return(-1.0e99)
+    else {
+        score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
+        choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
         
-    return(sum(logLikelihood) + logprior)
+        logLikelihood <- data*log(choice.prob)
+        
+        logprior <- dmvnorm(log(beta), mean=beta.mu, sigma=beta.sg, log=TRUE)
+            
+        return(sum(logLikelihood) + logprior)
+    }
 }
 
 
@@ -157,8 +161,8 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=500, tune=2,
-                         verbose=0, logfun=TRUE)[1,]
+                         thin=1, mcmc=1, burnin=10, tune=2,
+                         verbose=0, optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
 
         #update and simulate eps.mu and eps.sd
