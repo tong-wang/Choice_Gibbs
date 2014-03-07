@@ -229,7 +229,7 @@ eps2.pr.beta0 <- 0.1
 
 ## initial sampling input
 param0 <- list(beta=rep(0.1, L), d0=rep(10,K), eps2.sd=eps2.pr.alpha0/eps2.pr.beta0)
-nrun <- 10000
+nrun <- 5000
 
 
 

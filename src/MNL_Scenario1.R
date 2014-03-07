@@ -14,7 +14,7 @@ require("mvtnorm")
 ### Known parameters
 M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
 L <- 2 # number of covariates
-K <- 60 # number of periods
+K <- 180 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
 #by row: [X11 X12; X21 X22]
@@ -52,18 +52,23 @@ rowMeans(choice.mat)
 observation1 <- choice.mat[1:M-1,]
 
 
-
 #log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
     
-    score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
-    choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
-    
-
-    logLikelihood <- data*log(choice.prob)
-    
-    return(sum(logLikelihood))
+    if (any(beta<=0))
+        return(-1.0e99)
+    else {
+        score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
+        choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
+        
+        logLikelihood <- data*log(choice.prob)
+        
+        logprior <- dmvnorm(log(beta), mean=beta.mu, sigma=beta.sg, log=TRUE)
+        
+        return(sum(logLikelihood) + logprior)
+    }
 }
+
 
 
 logpost.d0 <- function(d0, data, lambda, beta, k) {
@@ -74,10 +79,7 @@ logpost.d0 <- function(d0, data, lambda, beta, k) {
     dd <- c(data,d0)
     nn <- sum(dd)
 
-    #choice.ll <- rep(0,K)
-    #for (k in 1:K) {
-    #    choice.ll[k] <- dmultinom(x=dd[, k], prob=choice.prob[, k], log=TRUE)    
-    #}    
+
     return(dmultinom(x=dd, prob=choice.prob, log=TRUE) + dpois(nn, lambda, log=TRUE))
 }
 
@@ -145,16 +147,17 @@ sample = function(data, parameters, nrun=1000) {
         
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
-                         data=rbind(data,d01),
-                         thin=1, mcmc=1, burnin=1000, tune=2,
-                         verbose=0, logfun=TRUE)[1,]
+                            data=rbind(data,d01),
+                            thin=1, mcmc=1, burnin=500, tune=0.008,
+                            verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
+                            #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
 
         #simulate d0 by discrete Metropolis-Hastings
         d02 <- rep(0, K)
         for (j in 1:K) {
-            d02[j] <- discreteMH(logpost.d0, proposal=list(size=10), start=d01[j], m=1000, 
-                            data=data[,j], lambda=lambda2, beta=beta2, k=j)$par[1000]
+            d02[j] <- discreteMH(logpost.d0, proposal=list(size=10), start=d01[j], m=500, 
+                            data=data[,j], lambda=lambda2, beta=beta2, k=j)$par[500]
         }
         
         
@@ -180,7 +183,9 @@ sample = function(data, parameters, nrun=1000) {
 
 
 ### initialize input before sampling
-# b has a diffuse prior
+# beta prior ~ logN(beta.mu, beta.sg)
+beta.mu <- c(-2.5, -2.5)
+beta.sg <- matrix(c(0.5, 0, 0, 0.5), 2, 2)
 
 # lambda ~ Gamma(lambda.alpha, lambda.beta)
 lambda.alpha <- 0.5
@@ -188,14 +193,16 @@ lambda.beta <- 0.01
 
 
 ## initial sampling input
-param0 <- list(beta=rep(0, L), lambda=lambda.alpha/lambda.beta, d0=rep(10,K))
-nrun <- 10000
+param0 <- list(beta=rep(0.1, L), lambda=lambda.alpha/lambda.beta, d0=rep(10,K))
+nrun <- 5000
 
 
 
 ### sample
 z <- sample(data=observation1, parameters=param0, nrun=nrun)
 
+
+save.image(file="MNL_Scenario1.RData")
 
 
 #stopCluster(cl)

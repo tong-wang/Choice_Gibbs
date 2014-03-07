@@ -225,14 +225,14 @@ eps1.pr.beta0 <- 0.1
 
 ## initial sampling input
 param0 <- list(beta=rep(0.1, L), d0=rep(10,K), eps1.sd=eps1.pr.alpha0/eps1.pr.beta0)
-nrun <- 10000
+nrun <- 5000
 
 
 
 ### sample
 z <- sample(data=observation3, parameters=param0, nrun=nrun)
 
-save.image(file="MNL_Scenario3_1.RData")
+save.image(file="MNL_Scenario3_M.RData")
 
 #stopCluster(cl)
 

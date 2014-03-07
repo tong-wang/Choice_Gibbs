@@ -14,11 +14,11 @@ require("mvtnorm")
 ### Known parameters
 M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
 L <- 2 # number of covariates
-K <- 60 # number of periods
+K <- 180 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
 #by row: [X11 X12; X21 X22]
-X_Mean <-c(4, 3, 6, 1)
+X_Mean <- c(4, 3, 6, 1)
 
 #for each of the K periods, generate an X matrix
 #dim of X_Mat is K, (M-1)*L
@@ -42,7 +42,7 @@ score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow
 #choice probabilities in each period (M by K)
 choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
 #simulate actual choice in each period (M by K)
-choice.mat <- matrix(0, nrow=3, ncol=K)
+choice.mat <- matrix(0, nrow=M, ncol=K)
 for (k in 1:K) {
     choice.mat[, k] <- rmultinom(1, N[k], choice.prob[, k])    
 }    
@@ -55,24 +55,35 @@ observation0 <- choice.mat
 
 ### Estimating beta by M-H sampling
 # log-posterior of beta, to be called by M-H algorithm
-# assuming diffuse prior
 logpost.beta <- function(beta, data) {
     
-    score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
-    choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
-    
-    logLikelihood <- data*log(choice.prob)
-    
-    return(sum(logLikelihood))
+    if (any(beta<=0))
+        return(-1.0e99)
+    else {
+        score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
+        choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
+        
+        logLikelihood <- data*log(choice.prob)
+        
+        logprior <- dmvnorm(log(beta), mean=beta.mu, sigma=beta.sg, log=TRUE)
+        
+        return(sum(logLikelihood) + logprior)
+    }
 }
 
 
 
+# beta prior ~ logN(beta.mu, beta.sg)
+beta.mu <- c(-2.5, -2.5)
+beta.sg <- matrix(c(0.5, 0, 0, 0.5), 2, 2)
+
+
+
 #direct sampling
-z <- MCMCmetrop1R(logpost.beta, theta.init=rep(0, L),
+z <- MCMCmetrop1R(logpost.beta, theta.init=rep(0.1, L),
                   data=observation0,
-                  thin=10, mcmc=10000, burnin=1000, tune=1.5,
-                  verbose=1000, logfun=TRUE)
+                  thin=1, mcmc=10000, burnin=1000, tune=0.008,
+                  verbose=500,  V=matrix(c(1,0,0,1),2,2))
 
 
 summary(z)
