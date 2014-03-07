@@ -161,8 +161,9 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=10, tune=2,
-                         verbose=0, optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
+                         thin=1, mcmc=1, burnin=100, tune=0.008,
+                         verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
+                         #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
 
         #update and simulate eps.mu and eps.sd
