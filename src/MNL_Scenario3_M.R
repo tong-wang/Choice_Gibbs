@@ -1,6 +1,7 @@
 ####
 # Scenario 3. A noisy observation of No-purchase is observed 
-# --- Noisy observation (say, traffic flow) is modeled as T = exp^\epsilon * N, where N is total realized number of potential customers and epsilon is the noise term ~ N(epsilon.mean, epsilon.sd) 
+# --- Noisy observation (say, traffic flow) is modeled as T = exp^epsilon1 * N + exp^epsilon2, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
+# --- Case 1: only multiplicative noise (only epsilon1, epsilon2=-Inf)
 ####
 
 Sys.setenv(LANG = "en")
@@ -30,9 +31,10 @@ X_Mat <- rmvnorm(K, mean=X_Mean)
 beta <- c(0.06, 0.03); # L-dimensional
 # lambda is the poisson demand rate in each perid
 lambda <- 100
-# parameters for the noise term epsilon
-epsilon.mean <- 3
-epsilon.sd <- 0.5
+# parameters for the noise terms epsilon1 and epsilon2
+epsilon1.mean <- 3
+epsilon1.sd <- 0.5
+epsilon2 <- -Inf
 
 ### simulate data
 # simulate number of demand per period, ~Poisson(lambda)
@@ -52,8 +54,8 @@ for (k in 1:K) {
 rowMeans(choice.mat)
 
 ### simulate traffic observation
-epsilon <- rnorm(K, mean=epsilon.mean, sd=epsilon.sd)
-traffic <- exp(epsilon) * colSums(choice.mat)
+epsilon1 <- rnorm(K, mean=epsilon1.mean, sd=epsilon1.sd)
+traffic <- exp(epsilon1) * colSums(choice.mat) + exp(epsilon2)
 
 # final observation consists of the sales of alternative 1 and 2 and the traffic flow
 observation3 <- list(sales = choice.mat[1:M-1,], traffic=traffic)
@@ -78,7 +80,7 @@ logpost.beta <- function(beta, data) {
 }
 
 
-logpost.d0 <- function(d0, data, lambda, beta, k, eps.mu, eps.sd) {
+logpost.d0 <- function(d0, data, lambda, beta, k, eps1.mu, eps1.sd) {
     
     score <-  exp(matrix(c(X_Mat[k,],0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta)
     choice.prob <- score/sum(score) # M*N matrix
@@ -86,7 +88,7 @@ logpost.d0 <- function(d0, data, lambda, beta, k, eps.mu, eps.sd) {
     dd <- c(data$sales,d0)
     nn <- sum(dd)
 
-    return(dmultinom(x=dd, prob=choice.prob, log=TRUE) + dpois(nn, lambda, log=TRUE) + dnorm(x=log(data$traffic/nn), mean=eps.mu, sd=eps.sd, log=TRUE))
+    return(dmultinom(x=dd, prob=choice.prob, log=TRUE) + dpois(nn, lambda, log=TRUE) + dnorm(x=log(data$traffic/nn), mean=eps1.mu, sd=eps1.sd, log=TRUE))
 }
 
 #implementation of discrete Metropolic-Hastings with Negative Binomial proposal
@@ -135,15 +137,15 @@ sample = function(data, parameters, nrun=1000) {
     lambdas = array(0, dim=c(nrun, 1))
     d0s = array(0, dim=c(nrun, K))
     betas = array(0, dim=c(nrun, L))
-    eps.mus = array(0, dim=c(nrun, 1))
-    eps.sds = array(0, dim=c(nrun, 1))
+    eps1.mus = array(0, dim=c(nrun, 1))
+    eps1.sds = array(0, dim=c(nrun, 1))
     
     # initial parameters
     #lambda1 <- parameters$lambda
     d01 <- parameters$d0
     beta1 <- parameters$beta
-    #eps.mu1 <- parameters$eps.mu
-    eps.sd1 <- parameters$eps.sd
+    #eps1.mu1 <- parameters$eps1.mu
+    eps1.sd1 <- parameters$eps1.sd
     
     
     # start sampling loop
@@ -161,16 +163,16 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=100, tune=0.008,
+                         thin=1, mcmc=1, burnin=500, tune=0.008,
                          verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
                          #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
 
-        #update and simulate eps.mu and eps.sd
-        eps <- log(traffic) - log(colSums(sales)+d01)
-        eps.mu2 <- rnorm(1, mean=mean(eps), sd=eps.sd1/sqrt(K))
-        eps.pr2 <- rgamma(1, shape=eps.pr.alpha0+K/2, rate=eps.pr.beta0+sum((eps-eps.mu2)^2)/2)
-        eps.sd2 <- 1/sqrt(eps.pr2)
+        #update and simulate eps1.mu and eps1.sd
+        eps1 <- log(traffic) - log(colSums(sales)+d01)
+        eps1.mu2 <- rnorm(1, mean=mean(eps1), sd=eps1.sd1/sqrt(K))
+        eps1.pr2 <- rgamma(1, shape=eps1.pr.alpha0+K/2, rate=eps1.pr.beta0+sum((eps1-eps1.mu2)^2)/2)
+        eps1.sd2 <- 1/sqrt(eps1.pr2)
         
         
         
@@ -179,7 +181,7 @@ sample = function(data, parameters, nrun=1000) {
         for (j in 1:K) {
             dataj <- list(sales=sales[,j], traffic=traffic[j])
             d02[j] <- discreteMH(logpost.d0, proposal=list(size=10), start=d01[j], m=500, 
-                            data=dataj, lambda=lambda2, beta=beta2, k=j, eps.mu=eps.mu2, eps.sd=eps.sd2)$par[500]
+                            data=dataj, lambda=lambda2, beta=beta2, k=j, eps1.mu=eps1.mu2, eps1.sd=eps1.sd2)$par[500]
         }
         
         
@@ -188,20 +190,20 @@ sample = function(data, parameters, nrun=1000) {
         lambdas[i,] = lambda2
         d0s[i,] = d02
         betas[i,] = beta2
-        eps.mus[i,] = eps.mu2
-        eps.sds[i,] = eps.sd2
+        eps1.mus[i,] = eps1.mu2
+        eps1.sds[i,] = eps1.sd2
 
-        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\teps.mu2:", eps.mu2, "\teps.sd2:", eps.sd2, "\n", sep=" ")
+        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\teps1.mu2:", eps1.mu2, "\teps1.sd2:", eps1.sd2, "\n", sep=" ")
         
         lambda1 <- lambda2
         d01 <- d02
         beta1 <- beta2
-        eps.mu1 <- eps.mu2
-        eps.sd1 <- eps.sd2
+        eps1.mu1 <- eps1.mu2
+        eps1.sd1 <- eps1.sd2
     }
     
     # results
-    return(list(lambdas=lambdas, d0s=d0s, betas=betas, eps.mus=eps.mus, eps.sds=eps.sds))
+    return(list(lambdas=lambdas, d0s=d0s, betas=betas, eps1.mus=eps1.mus, eps1.sds=eps1.sds))
 
 } # end function 'sample'
 
@@ -218,11 +220,11 @@ lambda.alpha <- 0.5
 lambda.beta <- 0.01
 
 # prior of the precision of epsilon
-eps.pr.alpha0 <- 0.2
-eps.pr.beta0 <- 0.1
+eps1.pr.alpha0 <- 0.2
+eps1.pr.beta0 <- 0.1
 
 ## initial sampling input
-param0 <- list(beta=rep(0.1, L), d0=rep(10,K), eps.sd=eps.pr.alpha0/eps.pr.beta0)
+param0 <- list(beta=rep(0.1, L), d0=rep(10,K), eps1.sd=eps1.pr.alpha0/eps1.pr.beta0)
 nrun <- 10000
 
 
@@ -295,15 +297,15 @@ hist(samples.d0.truncated$X5)
 
 
 
-#plot eps.mu and eps.sd
-samples.eps <- data.frame(mu=z$eps.mus, sd=z$eps.sds)
-plot(samples.eps$mu, type="l")
-plot(samples.eps$sd, type="l")
+#plot eps1.mu and eps1.sd
+samples.eps1 <- data.frame(mu=z$eps1.mus, sd=z$eps1.sds)
+plot(samples.eps1$mu, type="l")
+plot(samples.eps1$sd, type="l")
 
-samples.eps.truncated <- samples.eps[burnin:nrun,]
-quantile(samples.eps.truncated$mu, c(.025,.5,.975))
-quantile(samples.eps.truncated$sd, c(.025,.5,.975))
-colMeans(samples.eps.truncated)
-hist(samples.eps.truncated$mu)
-hist(samples.eps.truncated$sd)
+samples.eps1.truncated <- samples.eps1[burnin:nrun,]
+quantile(samples.eps1.truncated$mu, c(.025,.5,.975))
+quantile(samples.eps1.truncated$sd, c(.025,.5,.975))
+colMeans(samples.eps1.truncated)
+hist(samples.eps1.truncated$mu)
+hist(samples.eps1.truncated$sd)
 
