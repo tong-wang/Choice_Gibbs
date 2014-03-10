@@ -11,46 +11,16 @@ require("MCMCpack")
 require("mvtnorm")
 
 
-
-### Known parameters
-M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
-L <- 2 # number of covariates
-K <- 180 # number of periods
-
-#X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
-#by row: [X11 X12; X21 X22]
-X_Mean <- c(4, 3, 6, 1)
-
-#for each of the K periods, generate an X matrix
-#dim of X_Mat is K, (M-1)*L
-X_Mat <- rmvnorm(K, mean=X_Mean)
+## Load simulated choice data (NEED TO RUN MNL_InitData.R TO GENERATE THE DATA FIRST)
+load(file="MNL_InitData.RData")
 
 
-## true values of the parameters to be estimated
-# beta is the MNL coefficient
-beta <- c(0.06, 0.03); # L-dimensional
-# lambda is the poisson demand rate in each perid
-lambda <- 100
+
 # parameters for Traffic formula
 T.b <- c(500, 5)
 epsilon.sd <- 150 
 
-### simulate data
-# simulate number of demand per period, ~Poisson(lambda)
-N <- rpois(K, lambda) 
 
-#in each period, score of choice 1 and 2 (col) is exp(X*beta)
-#dim of score is M by K
-score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
-#choice probabilities in each period (M by K)
-choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
-#simulate actual choice in each period (M by K)
-choice.mat <- matrix(0, nrow=M, ncol=K)
-for (k in 1:K) {
-    choice.mat[, k] <- rmultinom(1, N[k], choice.prob[, k])    
-}    
-
-rowMeans(choice.mat)
 
 ### simulate traffic observation
 traffic <- T.b[1] + T.b[2] * colSums(choice.mat) + rnorm(K, mean=0, sd=epsilon.sd)
@@ -160,7 +130,7 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=500, tune=0.008,
+                         thin=1, mcmc=1, burnin=500, tune=0.014,
                          verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
                          #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
@@ -183,11 +153,15 @@ sample = function(data, parameters, nrun=1000) {
         
         #simulate d0 by discrete Metropolis-Hastings
         d02 <- rep(0, K)
+        d0.accept <- rep(0, K)
         for (j in 1:K) {
             dataj <- list(sales=sales[,j], traffic=traffic[j])
-            d02[j] <- discreteMH(logpost.d0, proposal=list(size=10), start=d01[j], m=500, 
-                            data=dataj, lambda=lambda2, beta=beta2, k=j, eps.sd=eps.sd2, t.b=t.b2)$par[500]
+            sim <- discreteMH(logpost.d0, proposal=list(size=2), start=d01[j], m=500, 
+                              data=dataj, lambda=lambda2, beta=beta2, k=j, eps.sd=eps.sd2, t.b=t.b2)
+            d02[j] <- sim$par[500]
+            d0.accept[j] <- sim$accept
         }
+        cat("discreteMH acceptance rate was ", mean(d0.accept), "\n\n")
         
         
 
