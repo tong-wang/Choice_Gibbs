@@ -23,8 +23,8 @@ observation0 <- choice.mat
 # log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
     
-    if (any(beta<=0))
-        return(-1.0e99)
+    if (any(beta<0))
+        return(-Inf)
     else {
         score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
         choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
@@ -48,7 +48,7 @@ beta.sg <- matrix(c(0.5, 0, 0, 0.5), 2, 2)
 #direct sampling
 z <- MCMCmetrop1R(logpost.beta, theta.init=rep(0.1, L),
                   data=observation0,
-                  thin=1, mcmc=5000, burnin=1000, tune=0.014,
+                  thin=1, mcmc=10000, burnin=2000, tune=0.01,
                   verbose=500,  V=matrix(c(1,0,0,1),2,2))
 
 
@@ -68,11 +68,23 @@ beta2 <- lambda.beta + K
 
 lambda.estm <- alpha2/beta2
 
-
 score.estm <- exp(matrix(X_Mean, M-1,L) %*% beta.estm)
 score.estm <- c(score.estm, 1)
 choice.prob.estm <- score.estm / sum(score.estm)
 demand.estm <- lambda.estm * choice.prob.estm
+
+
+
+
+### save plots
+require(ggplot2)
+
+pdf('MNL_Scenario0.beta1.pdf', width = 8, height = 8)
+ggplot(data=as.data.frame(z)) + geom_density(aes(x=V1), color="black")
+dev.off()
+pdf('MNL_Scenario0.beta2.pdf', width = 8, height = 8)
+ggplot(data=as.data.frame(z)) + geom_density(aes(x=V2), color="black")
+dev.off()
 
 
 

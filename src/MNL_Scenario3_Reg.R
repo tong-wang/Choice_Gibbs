@@ -33,8 +33,8 @@ observation3 <- list(sales = choice.mat[1:M-1,], traffic=traffic)
 #log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
 
-    if (any(beta<=0))
-        return(-1.0e99)
+    if (any(beta<0))
+        return(-Inf)
     else {
         score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
         choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
@@ -50,48 +50,53 @@ logpost.beta <- function(beta, data) {
 
 logpost.d0 <- function(d0, data, lambda, beta, k, t.b, eps.sd) {
     
-    score <-  exp(matrix(c(X_Mat[k,],0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta)
-    choice.prob <- score/sum(score) # M*N matrix
+    if (any(d0<0))
+        return(-Inf)
+    else {
+        score <-  exp(matrix(c(X_Mat[k,],0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta)
+        choice.prob <- score/sum(score) # M*N matrix
+        
+        dd <- c(data$sales,d0)
+        nn <- sum(dd)
     
-    dd <- c(data$sales,d0)
-    nn <- sum(dd)
-
-    return(dmultinom(x=dd, prob=choice.prob, log=TRUE) + dpois(nn, lambda, log=TRUE) + dnorm(x=data$traffic - t.b[1] - t.b[2]*nn, mean=0, sd=eps.sd, log=TRUE))
+        return(dmultinom(x=dd, prob=choice.prob, log=TRUE) + dpois(nn, lambda, log=TRUE) + dnorm(x=data$traffic - t.b[1] - t.b[2]*nn, mean=0, sd=eps.sd, log=TRUE))
+    }
 }
 
-#implementation of discrete Metropolic-Hastings with Negative Binomial proposal
-discreteMH <-function (logpost, proposal, start, m, ...) 
+
+
+# implementation of discrete Metropolis-Hastings algorithm with discretized symmetric univariate Normal proposal
+# tested for one- and high-dimensional discrete distribution
+discreteMH.norm <-function (logpost, start, scale, nrun, ...) 
 {
-    pb = length(start)
-    Mpar = array(0, c(m, pb))
-    b = matrix(t(start))
-    lb = logpost(start, ...)
+    dim = length(start)
+    MC = array(0, c(nrun, dim))
+    b1 = start
+    ll.b1 = logpost(start, ...)
     
-    size = proposal$size
     
     accept = 0
-    for (i in 1:m) {
-        #proposed next point is Negative Binomial using the current position as its mean, variance is controled by $size$
-        bc <- rnbinom(pb, size=size, mu=b)
+    for (i in 1:nrun) {
+        #proposed next point is discrete Multivariate Normal using the current position as its mean, variance is controled by $scale$
+        b2 <- round(rnorm(dim, mean=b1, sd=scale))
         
-        lbc = logpost(t(bc), ...) 
-        #since proposal is asymmetric, need to adjust the jumping probability accordingly
-        prob = exp(lbc + dnbinom(b, size=size, mu=bc, log=TRUE) - lb - dnbinom(bc, size=size, mu=b, log=TRUE) )
+        ll.b2 = logpost(b2, ...) 
+        ll.ratio = exp(ll.b2 - ll.b1)
         
-        if (is.na(prob) == FALSE) {
-            if (runif(1) < prob) {
-                lb = lbc
-                b = bc
+        if (!is.na(ll.ratio)) {
+            if (runif(1) <= ll.ratio) {
+                ll.b1 = ll.b2
+                b1 = b2
                 accept = accept + 1
             }
         }
-        Mpar[i, ] = b
+        MC[i, ] = b1
+        
     }
-    accept = accept/m
-    stuff = list(par = Mpar, accept = accept)
-    return(stuff)
+    accept = accept/nrun
+    
+    list(MC = MC, accept = accept)
 }
-
 
 
 
@@ -123,14 +128,14 @@ sample = function(data, parameters, nrun=1000) {
         beta2 <- lambda.beta + K
         
         #simulate lambda2
-        lambda2 <- rpois(1, alpha2/beta2)
+        lambda2 <- rgamma(1, shape=alpha2, rate=beta2)
         
         
         
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=500, tune=0.014,
+                         thin=1, mcmc=1, burnin=100, tune=0.015,
                          verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
                          #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
@@ -152,13 +157,13 @@ sample = function(data, parameters, nrun=1000) {
         
         
         #simulate d0 by discrete Metropolis-Hastings
-        d02 <- rep(0, K)
+        d02 <- d01
         d0.accept <- rep(0, K)
         for (j in 1:K) {
             dataj <- list(sales=sales[,j], traffic=traffic[j])
-            sim <- discreteMH(logpost.d0, proposal=list(size=2), start=d01[j], m=500, 
-                              data=dataj, lambda=lambda2, beta=beta2, k=j, eps.sd=eps.sd2, t.b=t.b2)
-            d02[j] <- sim$par[500]
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=8, nrun=10, 
+                                   data=dataj, lambda=lambda2, beta=beta2, k=j, eps.sd=eps.sd2, t.b=t.b2)
+            d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
         }
         cat("discreteMH acceptance rate was ", mean(d0.accept), "\n\n")
@@ -210,12 +215,11 @@ z <- sample(data=observation3, parameters=param0, nrun=nrun)
 
 save.image(file="MNL_Scenario3_Reg.RData")
 
-#stopCluster(cl)
 
 
 
 ### Visualize results
-burnin <- 0.1*nrun
+burnin <- 0.2*nrun
 
 #plot lambda
 samples.lambda <- z$lambdas
@@ -246,6 +250,16 @@ quantile(samples.beta.truncated$X2, c(.025,.5,.975))
 colMeans(samples.beta.truncated)
 hist(samples.beta.truncated$X1)
 hist(samples.beta.truncated$X2)
+
+### save plots
+require(ggplot2)
+
+pdf('MNL_Scenario3_Reg.beta1.pdf', width = 8, height = 8)
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
+dev.off()
+pdf('MNL_Scenario3_Reg.beta2.pdf', width = 8, height = 8)
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
+dev.off()
 
 
 
