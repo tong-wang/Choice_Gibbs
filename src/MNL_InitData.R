@@ -13,7 +13,7 @@ require("mvtnorm")
 ### Known parameters
 M <- 3 # number of alternatives (alternative 3 is dummy for no-purchase)
 L <- 2 # number of covariates
-K <- 90 # number of periods
+K <- 360 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
 #by row: [X11 X12; X21 X22]
@@ -28,7 +28,7 @@ X_Mat <- rmvnorm(K, mean=X_Mean, sigma=diag(0.5, length(X_Mean)))
 # beta is the MNL coefficient
 beta <- c(0.06, 0.03); # L-dimensional
 # lambda is the poisson demand rate in each perid
-lambda <- 50
+lambda <- 100
 
 
 ### simulate data
@@ -47,6 +47,8 @@ for (k in 1:K) {
 }    
 
 rowMeans(choice.mat)
+
+rm(k)
 
 save.image(file="MNL_InitData.RData")
 

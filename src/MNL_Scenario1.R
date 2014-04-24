@@ -129,7 +129,7 @@ sample = function(data, parameters, nrun=1000) {
         d02 <- d01
         d0.accept <- rep(0, K)
         for (j in 1:K) {
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=8, nrun=10, 
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=10, 
                               data=data[,j], lambda=lambda2, beta=beta2, k=j)
             d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
@@ -160,39 +160,40 @@ sample = function(data, parameters, nrun=1000) {
 
 ### initialize input before sampling
 # beta prior ~ logN(beta.mu, beta.sg)
-beta.mu <- c(-2.5, -2.5)
-beta.sg <- matrix(c(0.5, 0, 0, 0.5), 2, 2)
+beta.mu <- c(-2, -2)
+beta.sg <- matrix(c(10, 0, 0, 10), 2, 2)
 
 # lambda ~ Gamma(lambda.alpha, lambda.beta)
-lambda.alpha <- 0.5
-lambda.beta <- 0.01
+lambda.alpha <- 0.005
+lambda.beta <- 0.0001
 
 
 ## initial sampling input
 param0 <- list(beta=rep(0.1, L), lambda=lambda.alpha/lambda.beta, d0=rep(10,K))
 nrun <- 5000
+burnin <- 0.5
 
 
 
 ### sample
-z <- sample(data=observation1, parameters=param0, nrun=nrun)
+z1 <- sample(data=observation1, parameters=param0, nrun=nrun)
 
 
-save.image(file="MNL_Scenario1.RData")
+save(z1, observation1, file="MNL_Scenario1.RData")
 
 
 
 
 
 ### Visualize results
-burnin <- 0.2*nrun
+start <- burnin*nrun+1
 
 #plot lambda
-samples.lambda <- z$lambdas
+samples.lambda <- z1$lambdas
 plot(samples.lambda, type="l")
 
 
-samples.lambda.truncated <- samples.lambda[burnin:nrun,]
+samples.lambda.truncated <- samples.lambda[start:nrun,]
 quantile(samples.lambda.truncated, c(.025,.5,.975))
 mean(samples.lambda.truncated)
 hist(samples.lambda.truncated)
@@ -200,7 +201,7 @@ hist(samples.lambda.truncated)
 
 
 #plot beta
-samples.beta <- data.frame(z$betas)
+samples.beta <- data.frame(z1$betas)
 plot(samples.beta$X1, type="l")
 plot(samples.beta$X2, type="l")
 
@@ -210,7 +211,7 @@ lines(samples.beta$X2, col="BLUE")
 axis(side=1)
 axis(side=2)
 
-samples.beta.truncated <- samples.beta[burnin:nrun,]
+samples.beta.truncated <- samples.beta[start:nrun,]
 quantile(samples.beta.truncated$X1, c(.025,.5,.975))
 quantile(samples.beta.truncated$X2, c(.025,.5,.975))
 colMeans(samples.beta.truncated)
@@ -219,18 +220,20 @@ hist(samples.beta.truncated$X2)
 
 ### save plots
 require(ggplot2)
-
+pdf('MNL_Scenario1.lambda.pdf', width = 8, height = 8)
+ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black") + scale_x_continuous(limits=c(90, 110))
+dev.off()
 pdf('MNL_Scenario1.beta1.pdf', width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black") + scale_x_continuous(limits=c(0, 0.15))
 dev.off()
 pdf('MNL_Scenario1.beta2.pdf', width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black") + scale_x_continuous(limits=c(0, 0.1))
 dev.off()
 
 
 
 #plot d0[1]
-samples.d0 <- data.frame(z$d0s)
+samples.d0 <- data.frame(z1$d0s)
 plot(samples.d0$X1, type="l")
 plot(samples.d0$X2, type="l")
 plot(samples.d0$X3, type="l")
@@ -238,7 +241,7 @@ plot(samples.d0$X4, type="l")
 plot(samples.d0$X5, type="l")
 
 
-samples.d0.truncated <- samples.d0[burnin:nrun,]
+samples.d0.truncated <- samples.d0[start:nrun,]
 quantile(samples.d0.truncated$X1, c(.025,.5,.975))
 quantile(samples.d0.truncated$X2, c(.025,.5,.975))
 quantile(samples.d0.truncated$X3, c(.025,.5,.975))

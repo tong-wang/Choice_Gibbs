@@ -39,28 +39,32 @@ logpost.beta <- function(beta, data) {
 
 
 
+## initialize input before sampling
 # beta prior ~ logN(beta.mu, beta.sg)
-beta.mu <- c(-2.5, -2.5)
-beta.sg <- matrix(c(0.5, 0, 0, 0.5), 2, 2)
+beta.mu <- c(-2, -2)
+beta.sg <- matrix(c(10, 0, 0, 10), 2, 2)
 
+nrun <- 100000
+burnin <- 0.5
 
 
 #direct sampling
-z <- MCMCmetrop1R(logpost.beta, theta.init=rep(0.1, L),
+z0 <- MCMCmetrop1R(logpost.beta, theta.init=rep(0.1, L),
                   data=observation0,
-                  thin=1, mcmc=10000, burnin=2000, tune=0.01,
+                  thin=1, mcmc=nrun*(1-burnin), burnin=nrun*burnin, tune=0.01,
                   verbose=500,  V=matrix(c(1,0,0,1),2,2))
 
 
-summary(z)
-plot(z)
-beta.estm <- colMeans(z)
+summary(z0)
+plot(z0)
+beta.estm <- colMeans(z0)
+
 
 ### Estimate lambda by conjugate prior
-## initialize input before sampling
+
 # lambda ~ Gamma(lambda.alpha, lambda.beta)
-lambda.alpha <- 0.5
-lambda.beta <- 0.01
+lambda.alpha <- 0.005
+lambda.beta <- 0.0001
 
 #update posterior of lambda by conjugacy
 alpha2 <- lambda.alpha + sum(observation0)
@@ -76,14 +80,31 @@ demand.estm <- lambda.estm * choice.prob.estm
 
 
 
+z0 <- list(lambdas=rgamma(nrun*(1-burnin), shape=alpha2, rate=beta2), betas=z0[,])
+
+save(z0, observation0, file="MNL_Scenario0.RData")
+
+
+
 ### save plots
 require(ggplot2)
 
-pdf('MNL_Scenario0.beta1.pdf', width = 8, height = 8)
-ggplot(data=as.data.frame(z)) + geom_density(aes(x=V1), color="black")
+pdf('MNL_Scenario0.lambda.pdf', width = 8, height = 8)
+
+ggplot(data=as.data.frame(z0$lambdas)) + geom_density(aes(x=z0$lambdas), color="black") + scale_x_continuous(limits=c(90, 110))
+
 dev.off()
+
+pdf('MNL_Scenario0.beta1.pdf', width = 8, height = 8)
+
+ggplot(data=as.data.frame(z0$betas)) + geom_density(aes(x=V1), color="black") + scale_x_continuous(limits=c(0, 0.15))
+
+dev.off()
+
 pdf('MNL_Scenario0.beta2.pdf', width = 8, height = 8)
-ggplot(data=as.data.frame(z)) + geom_density(aes(x=V2), color="black")
+
+ggplot(data=as.data.frame(z0$betas)) + geom_density(aes(x=V2), color="black") + scale_x_continuous(limits=c(0, 0.1))
+
 dev.off()
 
 

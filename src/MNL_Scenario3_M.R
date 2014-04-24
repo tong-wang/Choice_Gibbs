@@ -29,7 +29,7 @@ epsilon1 <- rnorm(K, mean=epsilon1.mean, sd=epsilon1.sd)
 traffic <- exp(epsilon1) * colSums(choice.mat) + exp(epsilon2)
 
 # final observation consists of the sales of alternative 1 and 2 and the traffic flow
-observation3 <- list(sales = choice.mat[1:M-1,], traffic=traffic)
+observation3m <- list(sales = choice.mat[1:M-1,], traffic=traffic)
 
 
 
@@ -156,7 +156,7 @@ sample = function(data, parameters, nrun=1000) {
         d0.accept <- rep(0, K)
         for (j in 1:K) {
             dataj <- list(sales=sales[,j], traffic=traffic[j])
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=8, nrun=10, 
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=10, 
                                    data=dataj, lambda=lambda2, beta=beta2, k=j, eps1.mu=eps1.mu2, eps1.sd=eps1.sd2)
             d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
@@ -190,40 +190,41 @@ sample = function(data, parameters, nrun=1000) {
 
 ### initialize input before sampling
 # beta prior ~ logN(beta.mu, beta.sg)
-beta.mu <- c(-2.5, -2.5)
-beta.sg <- matrix(c(0.5, 0, 0, 0.5), 2, 2)
+beta.mu <- c(-2, -2)
+beta.sg <- matrix(c(10, 0, 0, 10), 2, 2)
 
 # lambda ~ Gamma(lambda.alpha, lambda.beta)
-lambda.alpha <- 0.5
-lambda.beta <- 0.01
+lambda.alpha <- 0.005
+lambda.beta <- 0.0001
 
 # prior of the precision of epsilon
-eps1.pr.alpha0 <- 0.2
-eps1.pr.beta0 <- 0.1
+eps1.pr.alpha0 <- 0.0001
+eps1.pr.beta0 <- 0.0001
 
 ## initial sampling input
 param0 <- list(beta=rep(0.1, L), d0=rep(10,K), eps1.sd=eps1.pr.alpha0/eps1.pr.beta0)
 nrun <- 5000
+burnin <- 0.5
 
 
 
 ### sample
-z <- sample(data=observation3, parameters=param0, nrun=nrun)
+z3m <- sample(data=observation3m, parameters=param0, nrun=nrun)
 
-save.image(file="MNL_Scenario3_M.RData")
+save(z3m, observation3m, file="MNL_Scenario3_M.RData")
 
 
 
 
 ### Visualize results
-burnin <- 0.2*nrun
+start <- burnin*nrun+1
 
 #plot lambda
-samples.lambda <- z$lambdas
+samples.lambda <- z3m$lambdas
 plot(samples.lambda, type="l")
 
 
-samples.lambda.truncated <- samples.lambda[burnin:nrun,]
+samples.lambda.truncated <- samples.lambda[start:nrun,]
 quantile(samples.lambda.truncated, c(.025,.5,.975))
 mean(samples.lambda.truncated)
 hist(samples.lambda.truncated)
@@ -231,7 +232,7 @@ hist(samples.lambda.truncated)
 
 
 #plot beta
-samples.beta <- data.frame(z$betas)
+samples.beta <- data.frame(z3m$betas)
 plot(samples.beta$X1, type="l")
 plot(samples.beta$X2, type="l")
 
@@ -241,7 +242,7 @@ lines(samples.beta$X2, col="BLUE")
 axis(side=1)
 axis(side=2)
 
-samples.beta.truncated <- samples.beta[burnin:nrun,]
+samples.beta.truncated <- samples.beta[start:nrun,]
 quantile(samples.beta.truncated$X1, c(.025,.5,.975))
 quantile(samples.beta.truncated$X2, c(.025,.5,.975))
 colMeans(samples.beta.truncated)
@@ -250,17 +251,19 @@ hist(samples.beta.truncated$X2)
 
 ### save plots
 require(ggplot2)
-
+pdf('MNL_Scenario3_M.lambda.pdf', width = 8, height = 8)
+ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black") + scale_x_continuous(limits=c(90, 110))
+dev.off()
 pdf('MNL_Scenario3_M.beta1.pdf', width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black") + scale_x_continuous(limits=c(0, 0.15))
 dev.off()
 pdf('MNL_Scenario3_M.beta2.pdf', width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black") + scale_x_continuous(limits=c(0, 0.1))
 dev.off()
 
 
 #plot d0[1]
-samples.d0 <- data.frame(z$d0s)
+samples.d0 <- data.frame(z3m$d0s)
 plot(samples.d0$X1, type="l")
 plot(samples.d0$X2, type="l")
 plot(samples.d0$X3, type="l")
@@ -268,7 +271,7 @@ plot(samples.d0$X4, type="l")
 plot(samples.d0$X5, type="l")
 
 
-samples.d0.truncated <- samples.d0[burnin:nrun,]
+samples.d0.truncated <- samples.d0[start:nrun,]
 quantile(samples.d0.truncated$X1, c(.025,.5,.975))
 quantile(samples.d0.truncated$X2, c(.025,.5,.975))
 quantile(samples.d0.truncated$X3, c(.025,.5,.975))
@@ -284,11 +287,11 @@ hist(samples.d0.truncated$X5)
 
 
 #plot eps1.mu and eps1.sd
-samples.eps1 <- data.frame(mu=z$eps1.mus, sd=z$eps1.sds)
+samples.eps1 <- data.frame(mu=z3m$eps1.mus, sd=z3m$eps1.sds)
 plot(samples.eps1$mu, type="l")
 plot(samples.eps1$sd, type="l")
 
-samples.eps1.truncated <- samples.eps1[burnin:nrun,]
+samples.eps1.truncated <- samples.eps1[start:nrun,]
 quantile(samples.eps1.truncated$mu, c(.025,.5,.975))
 quantile(samples.eps1.truncated$sd, c(.025,.5,.975))
 colMeans(samples.eps1.truncated)
