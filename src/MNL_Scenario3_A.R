@@ -19,7 +19,7 @@ load(file="MNL_InitData.RData")
 
 # parameters for the noise terms epsilon1 and epsilon2
 epsilon2.mean <- 5
-epsilon2.sd <- 1 #unknown variance to be estimated
+epsilon2.sd <- 0.5 #unknown variance to be estimated
 
 
 

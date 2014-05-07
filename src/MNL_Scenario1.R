@@ -129,7 +129,7 @@ sample = function(data, parameters, nrun=1000) {
         d02 <- d01
         d0.accept <- rep(0, K)
         for (j in 1:K) {
-            sim <- discreteMH.truncated.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
                               data=data[,j], lambda=lambda2, beta=beta2, k=j)
             d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
