@@ -1,6 +1,6 @@
 ####
 # Scenario 3. A noisy observation of No-purchase is observed 
-# --- Noisy observation (say, traffic flow) is modeled as T = exp^epsilon1 * N + exp^epsilon2, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
+# --- Noisy observation (say, traffic flow) is modeled as T = N + exp^epsilon2, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
 # --- Case 2: only additive noise (only epsilon2, epsilon1=0)
 ####
 
@@ -18,15 +18,14 @@ load(file="MNL_InitData.RData")
 
 
 # parameters for the noise terms epsilon1 and epsilon2
-epsilon1 <- 0
 epsilon2.mean <- 5
-epsilon2.sd <- 1
+epsilon2.sd <- 1 #unknown variance to be estimated
 
 
 
 ### simulate traffic observation
 epsilon2 <- rnorm(K, mean=epsilon2.mean, sd=epsilon2.sd)
-traffic <- exp(epsilon1) * colSums(choice.mat) + exp(epsilon2)
+traffic <- colSums(choice.mat) + exp(epsilon2)
 
 # final observation consists of the sales of alternative 1 and 2 and the traffic flow
 observation3a <- list(sales = choice.mat[1:M-1,], traffic=traffic)
@@ -142,14 +141,15 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=10, tune=0.015,
+                         thin=1, mcmc=1, burnin=10, tune=0.01,
                          verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
                          #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
 
         #update and simulate eps1.mu and eps1.sd
         eps2 <- log(traffic - colSums(sales) - d01)
-        eps2.mu2 <- rnorm(1, mean=mean(eps2), sd=eps2.sd1/sqrt(K))
+        #eps2.mu2 <- rnorm(1, mean=mean(eps2), sd=eps2.sd1/sqrt(K))
+        eps2.mu2 <- epsilon2.mean    #eps2.mu is known, no updating
         eps2.pr2 <- rgamma(1, shape=eps2.pr.alpha0+K/2, rate=eps2.pr.beta0+sum((eps2-eps2.mu2)^2)/2)
         eps2.sd2 <- 1/sqrt(eps2.pr2)
         
@@ -160,7 +160,7 @@ sample = function(data, parameters, nrun=1000) {
         d0.accept <- rep(0, K)
         for (j in 1:K) {
             dataj <- list(sales=sales[,j], traffic=traffic[j])
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=10, 
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
                                    data=dataj, lambda=lambda2, beta=beta2, k=j, eps2.mu=eps2.mu2, eps2.sd=eps2.sd2)
             d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
@@ -176,7 +176,7 @@ sample = function(data, parameters, nrun=1000) {
         eps2.mus[i,] = eps2.mu2
         eps2.sds[i,] = eps2.sd2
 
-        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\teps2.mu2:", eps2.mu2, "\teps2.sd2:", eps2.sd2, "\n", sep=" ")
+        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\teps2.mu2:", eps2.mu2, "\teps2.sd2:", eps2.sd2, "\td0[1]:", d02[1], "\n", sep=" ")
         
         lambda1 <- lambda2
         d01 <- d02

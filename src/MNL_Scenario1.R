@@ -120,7 +120,7 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                             data=rbind(data,d01),
-                            thin=1, mcmc=1, burnin=10, tune=0.015,
+                            thin=1, mcmc=1, burnin=10, tune=0.005,
                             verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
                             #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
@@ -129,7 +129,7 @@ sample = function(data, parameters, nrun=1000) {
         d02 <- d01
         d0.accept <- rep(0, K)
         for (j in 1:K) {
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=10, 
+            sim <- discreteMH.truncated.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
                               data=data[,j], lambda=lambda2, beta=beta2, k=j)
             d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
@@ -143,7 +143,7 @@ sample = function(data, parameters, nrun=1000) {
         d0s[i,] = d02
         betas[i,] = beta2
         
-        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\n", sep=" ")
+        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\td0[1]:", d02[1], "\n", sep=" ")
         
         lambda1 <- lambda2
         d01 <- d02

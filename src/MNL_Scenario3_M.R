@@ -1,6 +1,6 @@
 ####
 # Scenario 3. A noisy observation of No-purchase is observed 
-# --- Noisy observation (say, traffic flow) is modeled as T = exp^epsilon1 * N + exp^epsilon2, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
+# --- Noisy observation (say, traffic flow) is modeled as T = exp^epsilon1 * N, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
 # --- Case 1: only multiplicative noise (only epsilon1, epsilon2=-Inf)
 ####
 
@@ -17,16 +17,14 @@ load(file="MNL_InitData.RData")
 
 
 
-# parameters for the noise terms epsilon1 and epsilon2
+# parameters for the noise terms epsilon1
 epsilon1.mean <- 3
-epsilon1.sd <- 0.5
-epsilon2 <- -Inf
-
+epsilon1.sd <- 0.5 #unknown variance to be estimated
 
 
 ### simulate traffic observation
 epsilon1 <- rnorm(K, mean=epsilon1.mean, sd=epsilon1.sd)
-traffic <- exp(epsilon1) * colSums(choice.mat) + exp(epsilon2)
+traffic <- exp(epsilon1) * colSums(choice.mat) 
 
 # final observation consists of the sales of alternative 1 and 2 and the traffic flow
 observation3m <- list(sales = choice.mat[1:M-1,], traffic=traffic)
@@ -138,14 +136,15 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=10, tune=0.015,
+                         thin=1, mcmc=1, burnin=10, tune=0.01,
                          verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
                          #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
 
         #update and simulate eps1.mu and eps1.sd
         eps1 <- log(traffic) - log(colSums(sales)+d01)
-        eps1.mu2 <- rnorm(1, mean=mean(eps1), sd=eps1.sd1/sqrt(K))
+        #eps1.mu2 <- rnorm(1, mean=mean(eps1), sd=eps1.sd1/sqrt(K))
+        eps1.mu2 <- epsilon1.mean    #eps1.mu is known, no updating
         eps1.pr2 <- rgamma(1, shape=eps1.pr.alpha0+K/2, rate=eps1.pr.beta0+sum((eps1-eps1.mu2)^2)/2)
         eps1.sd2 <- 1/sqrt(eps1.pr2)
         
@@ -156,7 +155,7 @@ sample = function(data, parameters, nrun=1000) {
         d0.accept <- rep(0, K)
         for (j in 1:K) {
             dataj <- list(sales=sales[,j], traffic=traffic[j])
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=10, 
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
                                    data=dataj, lambda=lambda2, beta=beta2, k=j, eps1.mu=eps1.mu2, eps1.sd=eps1.sd2)
             d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
@@ -171,7 +170,7 @@ sample = function(data, parameters, nrun=1000) {
         eps1.mus[i,] = eps1.mu2
         eps1.sds[i,] = eps1.sd2
 
-        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\teps1.mu2:", eps1.mu2, "\teps1.sd2:", eps1.sd2, "\n", sep=" ")
+        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\teps1.mu2:", eps1.mu2, "\teps1.sd2:", eps1.sd2, "\td0[1]:", d02[1], "\n", sep=" ")
         
         lambda1 <- lambda2
         d01 <- d02
@@ -198,8 +197,8 @@ lambda.alpha <- 0.005
 lambda.beta <- 0.0001
 
 # prior of the precision of epsilon
-eps1.pr.alpha0 <- 0.0001
-eps1.pr.beta0 <- 0.0001
+eps1.pr.alpha0 <- 0.0000001 #0.0001
+eps1.pr.beta0 <- 0.000000001 #0.0001
 
 ## initial sampling input
 param0 <- list(beta=rep(0.1, L), d0=rep(10,K), eps1.sd=eps1.pr.alpha0/eps1.pr.beta0)
