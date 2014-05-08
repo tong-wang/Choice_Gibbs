@@ -4,7 +4,7 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary")
 
 require("MCMCpack")
 require("mvtnorm")

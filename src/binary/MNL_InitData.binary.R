@@ -4,7 +4,7 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary")
 
 require("mvtnorm")
 
@@ -16,12 +16,12 @@ L <- 2 # number of covariates
 K <- 360 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
-#by row: [X11 X12; X21 X22]
-X_Mean <- c(4, 3)
+#by row: [X11 X12]
+X_Mean <- c(8, 4)
 
 #for each of the K periods, generate an X matrix
 #dim of X_Mat is K, (M-1)*L
-X_Mat <- rmvnorm(K, mean=X_Mean, sigma=diag(0.5, length(X_Mean)))
+X_Mat <- rmvnorm(K, mean=X_Mean, sigma=matrix(c(2,0.5,0.5,1),2,2))
 
 
 ## true values of the parameters to be estimated

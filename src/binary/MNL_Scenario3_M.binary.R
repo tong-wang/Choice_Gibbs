@@ -5,7 +5,7 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary")
 
 require("MCMCpack")
 require("mvtnorm")
@@ -19,7 +19,7 @@ load(file="MNL_InitData.binary.RData")
 
 # parameters for the noise terms epsilon1
 epsilon1.mean <- 3
-epsilon1.sd <- 0.001 #unknown variance to be estimated
+epsilon1.sd <- 0.01 #unknown variance to be estimated
 
 
 ### simulate traffic observation
@@ -136,13 +136,13 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=10, tune=0.01,
+                         thin=1, mcmc=1, burnin=10, tune=0.002,
                          verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
                          #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
 
 
         #update and simulate eps1.mu and eps1.sd
-        eps1 <- log(traffic) - log(sum(sales)+d01)
+        eps1 <- log(traffic) - log(sales+d01)
         #eps1.mu2 <- rnorm(1, mean=mean(eps1), sd=eps1.sd1/sqrt(K))
         eps1.mu2 <- epsilon1.mean    #eps1.mu is known, no updating
         eps1.pr2 <- rgamma(1, shape=eps1.pr.alpha0+K/2, rate=eps1.pr.beta0+sum((eps1-eps1.mu2)^2)/2)
