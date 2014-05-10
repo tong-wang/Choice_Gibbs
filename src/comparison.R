@@ -4,13 +4,16 @@ load("MNL_Scenario0.RData")
 
 load("MNL_Scenario1.RData")
 
-load("MNL_Scenario3_M.RData")
 load("MNL_Scenario3_Ml.RData")
+load("MNL_Scenario3_M.RData")
+load("MNL_Scenario3_M1.RData")
+load("MNL_Scenario3_M2.RData")
+load("MNL_Scenario3_M3.RData")
 load("MNL_Scenario3_Mh.RData")
-load("MNL_Scenario3_Mxh.RData")
 load("MNL_Scenario3_M1h.RData")
 load("MNL_Scenario3_M2h.RData")
 load("MNL_Scenario3_M3h.RData")
+load("MNL_Scenario3_Mxh.RData")
 
 
 load("MNL_Scenario3_A.RData")
@@ -46,15 +49,18 @@ lam <- data.frame(
     lam1=z1$lambdas[start:nrun,], 
     lam3ml=z3ml$lambdas[start:nrun,], 
     lam3m=z3m$lambdas[start:nrun,], 
+    lam3m1=z3m1$lambdas[start:nrun,],
+    lam3m2=z3m2$lambdas[start:nrun,],
+    lam3m3=z3m3$lambdas[start:nrun,],
     lam3mh=z3mh$lambdas[start:nrun,],
     lam3mxh=z3mxh$lambdas[start:nrun,],
     lam3m1h=z3m1h$lambdas[start:nrun,],
     lam3m2h=z3m2h$lambdas[start:nrun,],
-    lam3m3h=z3m3h$lambdas[start:nrun,],
-    lam3al=z3al$lambdas[start:nrun,], 
-    lam3a=z3a$lambdas[start:nrun,], 
-    lam3ah=z3ah$lambdas[start:nrun,],
-    lam3axh=z3axh$lambdas[start:nrun,]#,
+    lam3m3h=z3m3h$lambdas[start:nrun,]#,
+    #lam3al=z3al$lambdas[start:nrun,], 
+    #lam3a=z3a$lambdas[start:nrun,], 
+    #lam3ah=z3ah$lambdas[start:nrun,],
+    #lam3axh=z3axh$lambdas[start:nrun,]#,
     #lam3rl=z3rl$lambdas[start:nrun,], 
     #lam3r=z3r$lambdas[start:nrun,], 
     #lam3rh=z3rh$lambdas[start:nrun,],
@@ -69,6 +75,9 @@ plot(lam$lam0, type="l")
 plot(lam$lam1, type="l")
 plot(z3ml$lambdas, type="l")
 plot(z3m$lambdas, type="l")
+plot(z3m1$lambdas, type="l")
+plot(z3m2$lambdas, type="l")
+plot(z3m3$lambdas, type="l")
 plot(z3mh$lambdas, type="l")
 plot(z3m1h$lambdas, type="l")
 plot(z3m2h$lambdas, type="l")
@@ -90,6 +99,9 @@ ggplot(data=lam) + geom_density(aes(x=lam0), color="black") +
     geom_density(aes(x=lam1), color="grey") +
     geom_density(aes(x=lam3ml), color="red") +
     geom_density(aes(x=lam3m), color="green") +
+    geom_density(aes(x=lam3m1), color="grey10") +
+    geom_density(aes(x=lam3m2), color="grey50") +
+    geom_density(aes(x=lam3m3), color="grey80") +
     geom_density(aes(x=lam3mh), color="yellow") +
     geom_density(aes(x=lam3m1h), color="red") +
     geom_density(aes(x=lam3m2h), color="green") +
@@ -124,15 +136,18 @@ beta <- data.frame(
     beta1=z1$betas[start:nrun,], 
     beta3ml=z3ml$betas[start:nrun,], 
     beta3m=z3m$betas[start:nrun,], 
+    beta3m1=z3m1$betas[start:nrun,], 
+    beta3m2=z3m2$betas[start:nrun,], 
+    beta3m3=z3m3$betas[start:nrun,], 
     beta3mh=z3mh$betas[start:nrun,],
     beta3mxh=z3mxh$betas[start:nrun,],
     beta3m1h=z3m1h$betas[start:nrun,],
     beta3m2h=z3m2h$betas[start:nrun,],
-    beta3m3h=z3m3h$betas[start:nrun,],
-    beta3al=z3al$betas[start:nrun,], 
-    beta3a=z3a$betas[start:nrun,], 
-    beta3ah=z3ah$betas[start:nrun,],
-    beta3axh=z3axh$betas[start:nrun,]#,
+    beta3m3h=z3m3h$betas[start:nrun,]#,
+    #beta3al=z3al$betas[start:nrun,], 
+    #beta3a=z3a$betas[start:nrun,], 
+    #beta3ah=z3ah$betas[start:nrun,],
+    #beta3axh=z3axh$betas[start:nrun,]#,
     #beta3rl=z3rl$betas[start:nrun,], 
     #beta3r=z3r$betas[start:nrun,], 
     #beta3rh=z3rh$betas[start:nrun,],
@@ -164,6 +179,9 @@ ggplot(data=beta) + geom_density(aes(x=beta0.1), color="black") +
     geom_density(aes(x=beta1.1), color="grey") +
     geom_density(aes(x=beta3ml.1), color="red") +
     geom_density(aes(x=beta3m.1), color="green") +
+    geom_density(aes(x=beta3m1.1), color="red") +
+    geom_density(aes(x=beta3m2.1), color="green") +
+    geom_density(aes(x=beta3m3.1), color="blue") +
     geom_density(aes(x=beta3mh.1), color="yellow") +
     geom_density(aes(x=beta3m1h.1), color="red") +
     geom_density(aes(x=beta3m2h.1), color="green") +
@@ -205,6 +223,9 @@ ggplot(data=beta) + geom_density(aes(x=beta0.2), color="black") +
     geom_density(aes(x=beta1.2), color="grey") +
     geom_density(aes(x=beta3ml.2), color="red") +
     geom_density(aes(x=beta3m.2), color="green") +
+    geom_density(aes(x=beta3m1.2), color="green") +
+    geom_density(aes(x=beta3m2.2), color="green") +
+    geom_density(aes(x=beta3m3.2), color="green") +
     geom_density(aes(x=beta3mh.2), color="yellow") +
     geom_density(aes(x=beta3m1h.2), color="red") +
     geom_density(aes(x=beta3m2h.2), color="green") +

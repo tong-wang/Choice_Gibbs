@@ -19,7 +19,7 @@ load(file="MNL_InitData.binary.RData")
 
 # parameters for the noise terms epsilon1
 epsilon1.mean <- 3
-epsilon1.sd <- 0.01 #unknown variance to be estimated
+epsilon1.sd <- 0.5 #unknown variance to be estimated
 
 
 ### simulate traffic observation
@@ -37,7 +37,7 @@ logpost.beta <- function(beta, data) {
     if (any(beta<0))
         return(-Inf)
     else {
-        score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
+        score <- rbind(t(exp(X_Mat %*% beta)), 1)
         choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
         
         logLikelihood <- data*log(choice.prob)
@@ -54,7 +54,7 @@ logpost.d0 <- function(d0, data, lambda, beta, k, eps1.mu, eps1.sd) {
     if (any(d0<0))
         return(-Inf)
     else {
-        score <-  exp(matrix(c(X_Mat[k,],0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta)
+        score <- rbind(t(exp(X_Mat[k,] %*% beta)), 1)
         choice.prob <- score/sum(score) # M*N matrix
         
         dd <- c(data$sales,d0)
@@ -136,10 +136,10 @@ sample = function(data, parameters, nrun=1000) {
         #simulate beta2 by Metropolis-Hastings
         beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
                          data=rbind(sales,d01),
-                         thin=1, mcmc=1, burnin=10, tune=0.002,
-                         verbose=0,  V=matrix(c(1,0,0,1),2,2))[1,]
-                         #optim.lower=1e-6, optim.method="L-BFGS-B")[1,]
+                         thin=1, mcmc=1, burnin=100, tune=0.02,
+                         verbose=0, V=diag(1,L,L))[1,]
 
+        
 
         #update and simulate eps1.mu and eps1.sd
         eps1 <- log(traffic) - log(sales+d01)
@@ -155,9 +155,9 @@ sample = function(data, parameters, nrun=1000) {
         d0.accept <- rep(0, K)
         for (j in 1:K) {
             dataj <- list(sales=sales[j], traffic=traffic[j])
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=100, 
                                    data=dataj, lambda=lambda2, beta=beta2, k=j, eps1.mu=eps1.mu2, eps1.sd=eps1.sd2)
-            d02[j] <- sim$MC[10]
+            d02[j] <- sim$MC[100]
             d0.accept[j] <- sim$accept
         }
         cat("discreteMH acceptance rate was ", mean(d0.accept), "\n\n")
@@ -189,8 +189,8 @@ sample = function(data, parameters, nrun=1000) {
 
 ### initialize input before sampling
 # beta prior ~ logN(beta.mu, beta.sg)
-beta.mu <- c(-2, -2)
-beta.sg <- matrix(c(10, 0, 0, 10), 2, 2)
+beta.mu <- rep(-2, L)
+beta.sg <- diag(10, nrow=L, ncol=L)
 
 # lambda ~ Gamma(lambda.alpha, lambda.beta)
 lambda.alpha <- 0.005
@@ -235,11 +235,6 @@ samples.beta <- data.frame(z3m$betas)
 plot(samples.beta$X1, type="l")
 plot(samples.beta$X2, type="l")
 
-plot(c(1,nrun), c(-0.05, 0.2), type="n", xlab="Samples", ylab="a", xaxt="n", yaxt="n")
-lines(samples.beta$X1, col="GREEN")
-lines(samples.beta$X2, col="BLUE")
-axis(side=1)
-axis(side=2)
 
 samples.beta.truncated <- samples.beta[start:nrun,]
 quantile(samples.beta.truncated$X1, c(.025,.5,.975))
@@ -248,16 +243,17 @@ colMeans(samples.beta.truncated)
 hist(samples.beta.truncated$X1)
 hist(samples.beta.truncated$X2)
 
+
 ### save plots
 require(ggplot2)
-pdf('MNL_Scenario3_M.lambda.pdf', width = 8, height = 8)
+pdf('MNL_Scenario3_M.binary.lambda.pdf', width = 8, height = 8)
 ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black") + scale_x_continuous(limits=c(90, 110))
 dev.off()
-pdf('MNL_Scenario3_M.beta1.pdf', width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black") + scale_x_continuous(limits=c(0, 0.15))
+pdf('MNL_Scenario3_M.binary.beta1.pdf', width = 8, height = 8)
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black") + scale_x_continuous(limits=c(0.1, 0.5))
 dev.off()
-pdf('MNL_Scenario3_M.beta2.pdf', width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black") + scale_x_continuous(limits=c(0, 0.1))
+pdf('MNL_Scenario3_M.binary.beta2.pdf', width = 8, height = 8)
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black") + scale_x_continuous(limits=c(0, 0.3))
 dev.off()
 
 

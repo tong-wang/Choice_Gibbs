@@ -14,9 +14,7 @@ require("mvtnorm")
 load(file="MNL_InitData.binary.RData")
 
 
-
 observation0 <- choice.mat
-
 
 
 ### Estimating beta by M-H sampling
@@ -26,7 +24,7 @@ logpost.beta <- function(beta, data) {
     if (any(beta<0))
         return(-Inf)
     else {
-        score <- apply(X_Mat, 1, function (x) exp(matrix(c(x,0,0), nrow=M, ncol=L, byrow=TRUE) %*% beta))
+        score <- rbind(t(exp(X_Mat %*% beta)), 1)
         choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
         
         logLikelihood <- data*log(choice.prob)
@@ -41,18 +39,19 @@ logpost.beta <- function(beta, data) {
 
 ## initialize input before sampling
 # beta prior ~ logN(beta.mu, beta.sg)
-beta.mu <- c(-2, -2)
-beta.sg <- matrix(c(10, 0, 0, 10), 2, 2)
+beta.mu <- rep(-2, L)
+beta.sg <- diag(10, nrow=L, ncol=L)
 
-nrun <- 100000
+
+nrun <- 50000
 burnin <- 0.5
 
 
 #direct sampling
 z0 <- MCMCmetrop1R(logpost.beta, theta.init=rep(0.1, L),
                   data=observation0,
-                  thin=1, mcmc=nrun*(1-burnin), burnin=nrun*burnin, tune=0.01,
-                  verbose=500,  V=matrix(c(1,0,0,1),2,2))
+                  thin=1, mcmc=nrun*(1-burnin), burnin=nrun*burnin, tune=0.02,
+                  verbose=500, V=diag(1,L,L))
 
 
 summary(z0)
@@ -90,21 +89,13 @@ save(z0, observation0, file="MNL_Scenario0.binary.RData")
 require(ggplot2)
 
 pdf('MNL_Scenario0.binary.lambda.pdf', width = 8, height = 8)
-
 ggplot(data=as.data.frame(z0$lambdas)) + geom_density(aes(x=z0$lambdas), color="black") + scale_x_continuous(limits=c(90, 110))
-
 dev.off()
-
 pdf('MNL_Scenario0.binary.beta1.pdf', width = 8, height = 8)
-
-ggplot(data=as.data.frame(z0$betas)) + geom_density(aes(x=V1), color="black") + scale_x_continuous(limits=c(0, 0.15))
-
+ggplot(data=as.data.frame(z0$betas)) + geom_density(aes(x=V1), color="black") + scale_x_continuous(limits=c(0.1, 0.5))
 dev.off()
-
 pdf('MNL_Scenario0.binary.beta2.pdf', width = 8, height = 8)
-
-ggplot(data=as.data.frame(z0$betas)) + geom_density(aes(x=V2), color="black") + scale_x_continuous(limits=c(0, 0.1))
-
+ggplot(data=as.data.frame(z0$betas)) + geom_density(aes(x=V2), color="black") + scale_x_continuous(limits=c(0, 0.3))
 dev.off()
 
 
