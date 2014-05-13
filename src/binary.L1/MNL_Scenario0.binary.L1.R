@@ -6,15 +6,17 @@
 Sys.setenv(LANG = "en")
 setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary.L1")
 
-require("MCMCpack")
 require("mvtnorm")
+source(file="Metropolis-Hastings.R")
 
 
 ## Load simulated choice data (NEED TO RUN MNL_InitData.binary.R TO GENERATE THE DATA FIRST)
 load(file="MNL_InitData.binary.L1.RData")
 
 
+
 observation0 <- choice.mat
+
 
 
 ### Estimating beta by M-H sampling
@@ -43,20 +45,19 @@ beta.mu <- rep(-2, L)
 beta.sg <- diag(10, nrow=L, ncol=L)
 
 
-nrun <- 50000
+nrun <- 10000
 burnin <- 0.5
+start <- burnin*nrun+1
 
 
-#direct sampling
-z0 <- MCMCmetrop1R(logpost.beta, theta.init=rep(0.1, L),
-                   data=observation0,
-                   thin=1, mcmc=nrun*(1-burnin), burnin=nrun*burnin, tune=0.02,
-                   verbose=500, V=diag(1,L,L))
+#direct sampling beta
+MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=c(0.05), start=rep(0.1, L), nrun = nrun, data=observation0)
+cat("MH acceptance rate: ", MH$accept, "\n")
 
+betas <- MH$MC
+plot(betas, type="l")
 
-summary(z0)
-plot(z0)
-beta.estm <- colMeans(z0)
+beta.estm <- mean(betas[start:nrun,])
 
 
 ### Estimate lambda by conjugate prior
@@ -79,21 +80,44 @@ demand.estm <- lambda.estm * choice.prob.estm
 
 
 
-z0 <- list(lambdas=rgamma(nrun*(1-burnin), shape=alpha2, rate=beta2), betas=z0[,])
+z0 <- list(lambdas=rgamma(nrun, shape=alpha2, rate=beta2), betas=betas)
 
 save(z0, observation0, file="MNL_Scenario0.binary.L1.RData")
 
+
+
+#plot lambda
+samples.lambda <- z0$lambdas
+plot(samples.lambda, type="l")
+
+
+samples.lambda.truncated <- samples.lambda[start:nrun]
+quantile(samples.lambda.truncated, c(.025,.5,.975))
+mean(samples.lambda.truncated)
+hist(samples.lambda.truncated)
+
+
+
+#plot beta
+samples.beta <- z0$betas
+plot(samples.beta, type="l")
+
+
+samples.beta.truncated <- samples.beta[start:nrun]
+quantile(samples.beta.truncated, c(.025,.5,.975))
+mean(samples.beta.truncated)
+hist(samples.beta.truncated)
 
 
 ### save plots
 require(ggplot2)
 
 pdf('MNL_Scenario0.binary.L1.lambda.pdf', width = 8, height = 8)
-ggplot(data=as.data.frame(z0$lambdas)) + geom_density(aes(x=z0$lambdas), color="black") + scale_x_continuous(limits=c(90, 110))
+ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=z0$lambdas), color="black") + scale_x_continuous(limits=c(90, 110))
 dev.off()
 
 pdf('MNL_Scenario0.binary.L1.beta.pdf', width = 8, height = 8)
-ggplot(data=as.data.frame(z0$betas)) + geom_density(aes(x=var1), color="black") + scale_x_continuous(limits=c(0.1, 0.5))
+ggplot(data=data.frame(samples.beta.truncated)) + geom_density(aes(x=z0$betas), color="black") + scale_x_continuous(limits=c(0.1, 0.5))
 dev.off()
 
 

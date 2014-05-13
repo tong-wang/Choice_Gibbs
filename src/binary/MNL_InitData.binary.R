@@ -13,7 +13,7 @@ require("mvtnorm")
 ### Known parameters
 M <- 2 # number of alternatives (the last alternative is dummy for no-purchase)
 L <- 2 # number of covariates
-K <- 360 # number of periods
+K <- 90 # number of periods
 
 #X is the attributes of the alternatives; in each period, [Xij] is an (M-1)*L matrix, i=1...M-1, j=1...L.
 X_Mean <- rep(0, (M-1)*L)

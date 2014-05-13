@@ -7,8 +7,8 @@
 Sys.setenv(LANG = "en")
 setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary.L1")
 
-require("MCMCpack")
 require("mvtnorm")
+source(file="Metropolis-Hastings.R")
 
 
 
@@ -66,40 +66,6 @@ logpost.d0 <- function(d0, data, lambda, beta, k, eps1.mu, eps1.sd) {
 
 
 
-# implementation of discrete Metropolis-Hastings algorithm with discretized symmetric univariate Normal proposal
-# tested for one- and high-dimensional discrete distribution
-discreteMH.norm <-function (logpost, start, scale, nrun, ...) 
-{
-    dim = length(start)
-    MC = array(0, c(nrun, dim))
-    b1 = start
-    ll.b1 = logpost(start, ...)
-    
-    
-    accept = 0
-    for (i in 1:nrun) {
-        #proposed next point is discrete Multivariate Normal using the current position as its mean, variance is controled by $scale$
-        b2 <- round(rnorm(dim, mean=b1, sd=scale))
-        
-        ll.b2 = logpost(b2, ...) 
-        ll.ratio = exp(ll.b2 - ll.b1)
-        
-        if (!is.na(ll.ratio)) {
-            if (runif(1) <= ll.ratio) {
-                ll.b1 = ll.b2
-                b1 = b2
-                accept = accept + 1
-            }
-        }
-        MC[i, ] = b1
-        
-    }
-    accept = accept/nrun
-    
-    list(MC = MC, accept = accept)
-}
-
-
 sample = function(data, parameters, nrun=1000) {
     
     sales <- data$sales
@@ -134,11 +100,11 @@ sample = function(data, parameters, nrun=1000) {
         
         
         #simulate beta2 by Metropolis-Hastings
-        beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
-                              data=rbind(sales,d01),
-                              thin=1, mcmc=1, burnin=100, tune=0.04,
-                              verbose=0, V=diag(1,L,L))[1,]
-        
+        MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=0.05, start=beta1, nrun = 10, data=rbind(sales,d01))
+        beta2 <- MH$MC[10,]
+        cat("MH acceptance rate: ", MH$accept, "\n")
+
+
 
         #update and simulate eps1.mu and eps1.sd
         eps1 <- log(traffic) - log(sales+d01)
@@ -154,9 +120,9 @@ sample = function(data, parameters, nrun=1000) {
         d0.accept <- rep(0, K)
         for (j in 1:K) {
             dataj <- list(sales=sales[j], traffic=traffic[j])
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=100, 
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=10, 
                                    data=dataj, lambda=lambda2, beta=beta2, k=j, eps1.mu=eps1.mu2, eps1.sd=eps1.sd2)
-            d02[j] <- sim$MC[100]
+            d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
         }
         cat("discreteMH acceptance rate was ", mean(d0.accept), "\n\n")

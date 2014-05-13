@@ -6,8 +6,8 @@
 Sys.setenv(LANG = "en")
 setwd("~/Dropbox/RCode/Choice_Gibbs.git/src")
 
-require("MCMCpack")
 require("mvtnorm")
+source(file="Metropolis-Hastings.R")
 
 
 
@@ -56,48 +56,15 @@ logpost.d0 <- function(d0, data, lambda, beta, k) {
 }
 
 
-# implementation of discrete Metropolis-Hastings algorithm with discretized symmetric univariate Normal proposal
-# tested for one- and high-dimensional discrete distribution
-discreteMH.norm <-function (logpost, start, scale, nrun, ...) 
-{
-    dim = length(start)
-    MC = array(0, c(nrun, dim))
-    b1 = start
-    ll.b1 = logpost(start, ...)
-    
-    
-    accept = 0
-    for (i in 1:nrun) {
-        #proposed next point is discrete Multivariate Normal using the current position as its mean, variance is controled by $scale$
-        b2 <- round(rnorm(dim, mean=b1, sd=scale))
-        
-        ll.b2 = logpost(b2, ...) 
-        ll.ratio = exp(ll.b2 - ll.b1)
-        
-        if (!is.na(ll.ratio)) {
-            if (runif(1) <= ll.ratio) {
-                ll.b1 = ll.b2
-                b1 = b2
-                accept = accept + 1
-            }
-        }
-        MC[i, ] = b1
-        
-    }
-    accept = accept/nrun
-    
-    list(MC = MC, accept = accept)
-}
-
-
 
 sample = function(data, parameters, nrun=1000) {
 
     
     # initialize arrays to save samples
-    lambdas = array(0, dim=c(nrun, 1))
-    d0s = array(0, dim=c(nrun, K))
-    betas = array(0, dim=c(nrun, L))
+    lambdas <- array(0, dim=c(nrun, 1))
+    d0s <- array(0, dim=c(nrun, K))
+    betas <- array(0, dim=c(nrun, L))
+
     
     # initial parameters
     lambda1 <- parameters$lambda
@@ -118,20 +85,18 @@ sample = function(data, parameters, nrun=1000) {
         
         
         #simulate beta2 by Metropolis-Hastings
-        beta2 <- MCMCmetrop1R(logpost.beta, theta.init=beta1,
-                            data=rbind(data,d01),
-                            thin=1, mcmc=1, burnin=100, tune=0.02,
-                            verbose=0, V=diag(1,L,L))[1,]
-
+        MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=c(0.06, 0.03), start=beta1, nrun = 10, data=rbind(data,d01))
+        beta2 <- MH$MC[10,]
+        cat("MH acceptance rate: ", MH$accept, "\n")
         
 
         #simulate d0 by discrete Metropolis-Hastings
         d02 <- d01
         d0.accept <- rep(0, K)
         for (j in 1:K) {
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=15, nrun=100, 
+            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
                               data=data[,j], lambda=lambda2, beta=beta2, k=j)
-            d02[j] <- sim$MC[100]
+            d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
         }
         cat("discreteMH acceptance rate was ", mean(d0.accept), "\n\n")
@@ -216,7 +181,7 @@ hist(samples.beta.truncated$X2)
 ### save plots
 require(ggplot2)
 pdf('MNL_Scenario1.lambda.pdf', width = 8, height = 8)
-ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black") + scale_x_continuous(limits=c(90, 110))
+ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black") + scale_x_continuous(limits=c(40, 60))
 dev.off()
 pdf('MNL_Scenario1.beta1.pdf', width = 8, height = 8)
 ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black") + scale_x_continuous(limits=c(0.1, 0.5))
