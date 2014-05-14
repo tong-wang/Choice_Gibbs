@@ -23,26 +23,23 @@ observation0 <- choice.mat
 # log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
     
-    if (any(beta<0))
-        return(-Inf)
-    else {
-        score <- rbind(t(exp(X_Mat %*% beta)), 1)
-        choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
-        
-        logLikelihood <- data*log(choice.prob)
-        
-        logprior <- dmvnorm(log(beta), mean=beta.mu, sigma=beta.sg, log=TRUE)
-        
-        return(sum(logLikelihood) + logprior)
-    }
+    score <- rbind(t(exp(X_Mat %*% beta)), 1)
+    choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
+    
+    logLikelihood <- data*log(choice.prob)
+    
+    logprior <- dmvnorm(beta, mean=beta.mu, sigma=beta.sg, log=TRUE)
+    
+    return(sum(logLikelihood) + logprior)
+    
 }
 
 
 
 ## initialize input before sampling
-# beta prior ~ logN(beta.mu, beta.sg)
-beta.mu <- rep(-2, L)
-beta.sg <- diag(10, nrow=L, ncol=L)
+# beta prior ~ N(beta.mu, beta.sg)
+beta.mu <- rep(0, L)
+beta.sg <- 100*diag(L)
 
 
 nrun <- 10000
@@ -51,7 +48,7 @@ start <- burnin*nrun+1
 
 
 #direct sampling beta
-MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=c(0.05), start=rep(0.1, L), nrun = nrun, data=observation0)
+MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=0.08, start=rep(0.1, L), nrun = nrun, data=observation0)
 cat("MH acceptance rate: ", MH$accept, "\n")
 
 betas <- MH$MC
@@ -113,16 +110,11 @@ hist(samples.beta.truncated)
 require(ggplot2)
 
 pdf('MNL_Scenario0.binary.L1.lambda.pdf', width = 8, height = 8)
-ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=z0$lambdas), color="black") + scale_x_continuous(limits=c(90, 110))
+ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black")
 dev.off()
 
 pdf('MNL_Scenario0.binary.L1.beta.pdf', width = 8, height = 8)
-ggplot(data=data.frame(samples.beta.truncated)) + geom_density(aes(x=z0$betas), color="black") + scale_x_continuous(limits=c(0.1, 0.5))
+ggplot(data=data.frame(samples.beta.truncated)) + geom_density(aes(x=samples.beta.truncated), color="black")
 dev.off()
-
-
-
-
-
 
 

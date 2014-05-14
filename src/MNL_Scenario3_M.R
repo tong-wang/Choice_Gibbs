@@ -33,19 +33,16 @@ observation3m <- list(sales = choice.mat[1:M-1,], traffic=traffic)
 
 #log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
-
-    if (any(beta<0))
-        return(-Inf)
-    else {
-        score <- rbind(apply(X_Mat, 1, function (x) exp(matrix(x, nrow=M-1, ncol=L, byrow=TRUE) %*% beta)), 1)
-        choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
-        
-        logLikelihood <- data*log(choice.prob)
-        
-        logprior <- dmvnorm(log(beta), mean=beta.mu, sigma=beta.sg, log=TRUE)
-            
-        return(sum(logLikelihood) + logprior)
-    }
+    
+    score <- rbind(apply(X_Mat, 1, function (x) exp(matrix(x, nrow=M-1, ncol=L, byrow=TRUE) %*% beta)), 1)
+    choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
+    
+    logLikelihood <- data*log(choice.prob)
+    
+    logprior <- dmvnorm(beta, mean=beta.mu, sigma=beta.sg, log=TRUE)
+    
+    return(sum(logLikelihood) + logprior)
+    
 }
 
 
@@ -153,9 +150,9 @@ sample = function(data, parameters, nrun=1000) {
 
 
 ### initialize input before sampling
-# beta prior ~ logN(beta.mu, beta.sg)
-beta.mu <- rep(-2, L)
-beta.sg <- diag(10, nrow=L, ncol=L)
+# beta prior ~ N(beta.mu, beta.sg)
+beta.mu <- rep(0, L)
+beta.sg <- 100*diag(L)
 
 # lambda ~ Gamma(lambda.alpha, lambda.beta)
 lambda.alpha <- 0.005
@@ -211,13 +208,13 @@ hist(samples.beta.truncated$X2)
 ### save plots
 require(ggplot2)
 pdf('MNL_Scenario3_M.lambda.pdf', width = 8, height = 8)
-ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black") + scale_x_continuous(limits=c(40, 60))
+ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black")
 dev.off()
 pdf('MNL_Scenario3_M.beta1.pdf', width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black") + scale_x_continuous(limits=c(0.1, 0.5))
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
 dev.off()
 pdf('MNL_Scenario3_M.beta2.pdf', width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black") + scale_x_continuous(limits=c(0, 0.3))
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
 dev.off()
 
 
