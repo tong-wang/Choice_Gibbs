@@ -26,7 +26,7 @@ X_Mat <- rmvnorm(K, mean=X_Mean)
 
 ## true values of the parameters to be estimated
 # beta is the MNL coefficient
-beta <- c(0.3, 0.1); # L-dimensional
+beta <- c(0.1, 0.05); # L-dimensional
 # lambda is the poisson demand rate in each perid
 lambda <- 50
 
