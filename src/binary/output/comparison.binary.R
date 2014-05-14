@@ -1,4 +1,4 @@
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary/")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary/output/K90L50Beta0.1")
 
 load("MNL_Scenario0.binary.RData")
 
@@ -6,12 +6,15 @@ load("MNL_Scenario1.binary.RData")
 
 load("MNL_Scenario3_M.binary.RData")
 load("MNL_Scenario3_M.binary.l.RData")
+load("MNL_Scenario3_M.binary.1.RData")
+load("MNL_Scenario3_M.binary.2.RData")
+load("MNL_Scenario3_M.binary.3.RData")
 load("MNL_Scenario3_M.binary.h.RData")
-load("MNL_Scenario3_M.binary.xh.RData")
 
 load("MNL_Scenario3_M.binary.1h.RData")
 load("MNL_Scenario3_M.binary.2h.RData")
 load("MNL_Scenario3_M.binary.3h.RData")
+load("MNL_Scenario3_M.binary.xh.RData")
 
 
 load("MNL_Scenario3_A.RData")
@@ -45,6 +48,9 @@ lam <- data.frame(
     lam1=z1$lambdas[start:nrun,], 
     lam3ml=z3ml$lambdas[start:nrun,], 
     lam3m=z3m$lambdas[start:nrun,], 
+    lam3m1=z3m1$lambdas[start:nrun,],
+    lam3m2=z3m2$lambdas[start:nrun,],
+    lam3m3=z3m3$lambdas[start:nrun,],
     lam3mh=z3mh$lambdas[start:nrun,],
     lam3mxh=z3mxh$lambdas[start:nrun,],
     lam3m1h=z3m1h$lambdas[start:nrun,],
@@ -89,6 +95,9 @@ ggplot(data=lam) + geom_density(aes(x=lam0), color="black") +
     geom_density(aes(x=lam1), color="grey") +
     geom_density(aes(x=lam3ml), color="red") +
     geom_density(aes(x=lam3m), color="green") +
+    geom_density(aes(x=lam3m1), color="green") +
+    geom_density(aes(x=lam3m2), color="green") +
+    geom_density(aes(x=lam3m3), color="green") +
     geom_density(aes(x=lam3mh), color="yellow") +
     geom_density(aes(x=lam3m1h), color="red") +
     geom_density(aes(x=lam3m2h), color="green") +
@@ -123,6 +132,9 @@ beta <- data.frame(
     beta1=z1$betas[start:nrun,], 
     beta3ml=z3ml$betas[start:nrun,], 
     beta3m=z3m$betas[start:nrun,], 
+    beta3m1=z3m1$betas[start:nrun,], 
+    beta3m2=z3m2$betas[start:nrun,], 
+    beta3m3=z3m3$betas[start:nrun,], 
     beta3mh=z3mh$betas[start:nrun,],
     beta3mxh=z3mxh$betas[start:nrun,],
     beta3m1h=z3m1h$betas[start:nrun,],
@@ -153,7 +165,7 @@ plot(beta$beta3m1h.1, type="l")
 plot(beta$beta3m2h.1, type="l")
 plot(beta$beta3m3h.1, type="l")
 plot(beta$beta3mxh.1, type="l")
-plot(beta$beta3a.1, type="l")
+acplot(beta$beta3a.1, type="l")
 plot(beta$beta3rl.1, type="l")
 plot(beta$beta3r.1, type="l")
 plot(beta$beta3rh.1, type="l")
@@ -163,6 +175,9 @@ ggplot(data=beta) + geom_density(aes(x=beta0.1), color="black") +
     geom_density(aes(x=beta1.1), color="grey") +
     geom_density(aes(x=beta3ml.1), color="red") +
     geom_density(aes(x=beta3m.1), color="green") +
+    geom_density(aes(x=beta3m1.1), color="green") +
+    geom_density(aes(x=beta3m2.1), color="green") +
+    geom_density(aes(x=beta3m3.1), color="green") +
     geom_density(aes(x=beta3mh.1), color="yellow") +
     geom_density(aes(x=beta3m1h.1), color="red") +
     geom_density(aes(x=beta3m2h.1), color="green") +
@@ -204,6 +219,9 @@ ggplot(data=beta) + geom_density(aes(x=beta0.2), color="black") +
     geom_density(aes(x=beta1.2), color="grey") +
     geom_density(aes(x=beta3ml.2), color="red") +
     geom_density(aes(x=beta3m.2), color="green") +
+    geom_density(aes(x=beta3m1.2), color="green") +
+    geom_density(aes(x=beta3m2.2), color="green") +
+    geom_density(aes(x=beta3m3.2), color="green") +
     geom_density(aes(x=beta3mh.2), color="yellow") +
     geom_density(aes(x=beta3m1h.2), color="red") +
     geom_density(aes(x=beta3m2h.2), color="green") +

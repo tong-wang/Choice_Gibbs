@@ -1,19 +1,19 @@
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/K360Lambda100/")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/output/K90L50Beta0.1/")
 
 load("MNL_Scenario0.RData")
 
 load("MNL_Scenario1.RData")
 
-load("MNL_Scenario3_Ml.RData")
+load("MNL_Scenario3_M.l.RData")
 load("MNL_Scenario3_M.RData")
-load("MNL_Scenario3_M1.RData")
-load("MNL_Scenario3_M2.RData")
-load("MNL_Scenario3_M3.RData")
-load("MNL_Scenario3_Mh.RData")
-load("MNL_Scenario3_M1h.RData")
-load("MNL_Scenario3_M2h.RData")
-load("MNL_Scenario3_M3h.RData")
-load("MNL_Scenario3_Mxh.RData")
+load("MNL_Scenario3_M.1.RData")
+load("MNL_Scenario3_M.2.RData")
+load("MNL_Scenario3_M.3.RData")
+load("MNL_Scenario3_M.h.RData")
+load("MNL_Scenario3_M.1h.RData")
+load("MNL_Scenario3_M.2h.RData")
+load("MNL_Scenario3_M.3h.RData")
+load("MNL_Scenario3_M.xh.RData")
 
 
 load("MNL_Scenario3_A.RData")
@@ -28,7 +28,7 @@ load("MNL_Scenario3_Regxh.RData")
 
 
 
-nrun <- 100000
+nrun <- 50000
 burnin <- 0.5
 start <- burnin*nrun+1
 
@@ -73,16 +73,16 @@ colMeans(lam)
 
 plot(lam$lam0, type="l")
 plot(lam$lam1, type="l")
-plot(z3ml$lambdas, type="l")
-plot(z3m$lambdas, type="l")
-plot(z3m1$lambdas, type="l")
-plot(z3m2$lambdas, type="l")
-plot(z3m3$lambdas, type="l")
-plot(z3mh$lambdas, type="l")
-plot(z3m1h$lambdas, type="l")
-plot(z3m2h$lambdas, type="l")
-plot(z3m3h$lambdas, type="l")
-plot(z3mxh$lambdas, type="l")
+plot(lam$lam3ml, type="l")
+plot(lam$lam3m, type="l")
+plot(lam$lam3m1, type="l")
+plot(lam$lam3m2, type="l")
+plot(lam$lam3m3, type="l")
+plot(lam$lam3mh, type="l")
+plot(lam$lam3m1h, type="l")
+plot(lam$lam3m2h, type="l")
+plot(lam$lam3m3h, type="l")
+plot(lam$lam3mxh, type="l")
 plot(lam$lam3al, type="l")
 plot(lam$lam3a, type="l")
 plot(lam$lam3ah, type="l")
