@@ -25,10 +25,10 @@ epsilon2.sd <- 0.5 #unknown variance to be estimated
 
 ### simulate traffic observation
 epsilon2 <- rnorm(K, mean=epsilon2.mean, sd=epsilon2.sd)
-traffic <- colSums(choice.mat) + exp(epsilon2)
+Traffic <- colSums(choice.mat) + exp(epsilon2)
 
-# final observation consists of the sales of alternative 1 and 2 and the traffic flow
-observation3a <- list(sales = choice.mat[1:M-1,], traffic=traffic)
+# final observation consists of the demand of alternative 1 and 2 and the traffic flow
+observation3a <- list(demand=Demand, traffic=Traffic)
 
 
 
@@ -55,7 +55,7 @@ logpost.d0 <- function(d0, data, lambda, beta, k, eps2.mu, eps2.sd) {
         score <- rbind(exp(matrix(c(X_Mat[k,]), nrow=M-1, ncol=L, byrow=TRUE) %*% beta), 1)
         choice.prob <- score/sum(score) # M*N matrix
         
-        dd <- c(data$sales,d0)
+        dd <- c(data$demand,d0)
         nn <- sum(dd)
     
         return(dmultinom(x=dd, prob=choice.prob, log=TRUE) + dpois(nn, lambda, log=TRUE) + dnorm(x=log(data$traffic-nn), mean=eps2.mu, sd=eps2.sd, log=TRUE))
@@ -66,9 +66,9 @@ logpost.d0 <- function(d0, data, lambda, beta, k, eps2.mu, eps2.sd) {
 
 sample = function(data, parameters, nrun=1000) {
     
-    sales <- data$sales
+    demand <- data$demand
     traffic <- data$traffic
-
+    
     
     # initialize arrays to save samples
     lambdas = array(0, dim=c(nrun, 1))
@@ -93,7 +93,7 @@ sample = function(data, parameters, nrun=1000) {
     for(i in 1:nrun) {
 
         #update posterior of lambda by conjugacy
-        alpha2 <- lambda.alpha + sum(sales) + sum(d01)
+        alpha2 <- lambda.alpha + sum(demand) + sum(d01)
         beta2 <- lambda.beta + K
         
         #simulate lambda2
@@ -102,14 +102,14 @@ sample = function(data, parameters, nrun=1000) {
         
         
         #simulate beta2 by Metropolis-Hastings
-        MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=c(0.06, 0.03), start=beta1, nrun = 10, data=rbind(sales,d01))
+        MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=c(0.06, 0.03), start=beta1, nrun = 10, data=rbind(demand,d01))
         beta2 <- MH$MC[10,]
         cat("MH acceptance rate: ", MH$accept, "\n")
         
 
 
         #update and simulate eps1.mu and eps1.sd
-        eps2 <- log(traffic - colSums(sales) - d01)
+        eps2 <- log(traffic - colSums(demand) - d01)
         #eps2.mu2 <- rnorm(1, mean=mean(eps2), sd=eps2.sd1/sqrt(K))
         eps2.mu2 <- epsilon2.mean    #eps2.mu is known, no updating
         eps2.pr2 <- rgamma(1, shape=eps2.pr.alpha0+K/2, rate=eps2.pr.beta0+sum((eps2-eps2.mu2)^2)/2)
@@ -121,7 +121,7 @@ sample = function(data, parameters, nrun=1000) {
         d02 <- d01
         d0.accept <- rep(0, K)
         for (j in 1:K) {
-            dataj <- list(sales=sales[,j], traffic=traffic[j])
+            dataj <- list(demand=demand[,j], traffic=traffic[j])
             sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
                                    data=dataj, lambda=lambda2, beta=beta2, k=j, eps2.mu=eps2.mu2, eps2.sd=eps2.sd2)
             d02[j] <- sim$MC[10]

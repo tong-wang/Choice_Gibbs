@@ -1,6 +1,6 @@
 ####
 # Initialize choice data
-#
+# --- with inventory and stock-out info
 ####
 
 Sys.setenv(LANG = "en")
@@ -47,6 +47,15 @@ for (k in 1:K) {
 }    
 
 rowMeans(choice.mat)
+
+
+Inventory <- matrix(round(runif((M-1)*K, min=10, max=20)), M-1, K)
+Demand <- choice.mat[1:M-1,]
+Sales <- pmin(Demand, Inventory)
+Stockout <- (Demand >= Inventory)
+LostSales <- pmax(Demand-Inventory, 0)
+NoPurchase <- choice.mat[M,]
+
 
 rm(k)
 

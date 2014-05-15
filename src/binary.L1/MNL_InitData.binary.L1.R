@@ -1,6 +1,8 @@
 ####
 # Initialize choice data
 # --- binary choice case
+# --- with one-dimensional covaraite
+# --- with inventory and stock-out info
 ####
 
 Sys.setenv(LANG = "en")
@@ -46,6 +48,15 @@ for (k in 1:K) {
 }    
 
 rowMeans(choice.mat)
+
+
+Inventory <- round(runif(K, min=20, max=30))
+Demand <- choice.mat[1:M-1,]
+Sales <- pmin(Demand, Inventory)
+Stockout <- (Demand >= Inventory)
+LostSales <- pmax(Demand-Inventory, 0)
+NoPurchase <- choice.mat[M,]
+
 
 rm(k)
 

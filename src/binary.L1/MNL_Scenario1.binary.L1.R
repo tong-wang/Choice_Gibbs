@@ -16,7 +16,7 @@ load(file="MNL_InitData.binary.L1.RData")
 
 
 
-observation1 <- choice.mat[1:M-1,]
+observation1 <- list(demand=Demand)
 
 
 #log-posterior of beta, to be called by M-H algorithm
@@ -56,6 +56,7 @@ logpost.d0 <- function(d0, data, lambda, beta, k) {
 
 sample = function(data, parameters, nrun=1000) {
 
+    demand = data$demand
     
     # initialize arrays to save samples
     lambdas = array(0, dim=c(nrun, 1))
@@ -72,7 +73,7 @@ sample = function(data, parameters, nrun=1000) {
     for(i in 1:nrun) {
 
         #update posterior of lambda by conjugacy
-        alpha2 <- lambda.alpha + sum(data) + sum(d01)
+        alpha2 <- lambda.alpha + sum(demand) + sum(d01)
         beta2 <- lambda.beta + K
         
         #simulate lambda2
@@ -81,7 +82,7 @@ sample = function(data, parameters, nrun=1000) {
         
         
         #simulate beta2 by Metropolis-Hastings
-        MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=0.1, start=beta1, nrun = 10, data=rbind(data,d01))
+        MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=0.1, start=beta1, nrun = 10, data=rbind(demand,d01))
         beta2 <- MH$MC[10,]
         cat("MH acceptance rate: ", MH$accept, "\n")
         
@@ -91,7 +92,7 @@ sample = function(data, parameters, nrun=1000) {
         d0.accept <- rep(0, K)
         for (j in 1:K) {
             sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
-                              data=data[j], lambda=lambda2, beta=beta2, k=j)
+                              data=demand[j], lambda=lambda2, beta=beta2, k=j)
             d02[j] <- sim$MC[10]
             d0.accept[j] <- sim$accept
         }

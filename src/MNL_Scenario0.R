@@ -15,7 +15,7 @@ load(file="MNL_InitData.RData")
 
 
 
-observation0 <- choice.mat
+observation0 <- list(demand=Demand, nopurchase=NoPurchase)
 
 
 
@@ -48,7 +48,7 @@ start <- burnin*nrun+1
 
 
 #direct sampling beta
-MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=c(0.04, 0.02), start=rep(0.1, L), nrun = nrun, data=observation0)
+MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=c(0.04, 0.02), start=rep(0.1, L), nrun = nrun, data=rbind(observation0$demand, observation0$nopurchase))
 cat("MH acceptance rate: ", MH$accept, "\n")
 
 betas <- MH$MC
@@ -65,7 +65,7 @@ lambda.alpha <- 0.005
 lambda.beta <- 0.0001
 
 #update posterior of lambda by conjugacy
-alpha2 <- lambda.alpha + sum(observation0)
+alpha2 <- lambda.alpha + sum(observation0$demand, observation0$nopurchase)
 beta2 <- lambda.beta + K
 
 lambda.estm <- alpha2/beta2
