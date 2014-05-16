@@ -1,6 +1,6 @@
 ####
 # Scenario 3. A noisy observation of No-purchase is observed 
-# --- Noisy observation (say, traffic flow) is modeled as T = exp^epsilon1 * N, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
+# --- Noisy observation (say, traffic flow) is modeled as T = exp^epsilon1 * N + exp^epsilon2, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
 # --- Case 1: only multiplicative noise (only epsilon1, epsilon2=-Inf)
 #
 ####
@@ -13,7 +13,7 @@ source(file="Metropolis-Hastings.R")
 
 
 
-## Load simulated choice data (NEED TO RUN MNL_InitData.binary.R TO GENERATE THE DATA FIRST)
+## Load simulated choice data (NEED TO RUN MNL_InitData.binary.L1.R TO GENERATE THE DATA FIRST)
 load(file="MNL_InitData.binary.L1.RData")
 
 # final observation consists of the Demand and the Traffic flow

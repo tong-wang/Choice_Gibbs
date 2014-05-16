@@ -1,6 +1,6 @@
 ####
 # Scenario 3. A noisy observation of No-purchase is observed 
-# --- Noisy observation (say, traffic flow) is modeled as T = N + exp^epsilon2, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
+# --- Noisy observation (say, traffic flow) is modeled as T = exp^epsilon1 * N + exp^epsilon2, where N is total realized number of potential customers and epsilon1 and epsilon2 are noise terms ~ N(epsilon1.mean, epsilon1.sd) and N(epsilon2.mean, epsilon2.sd)
 # --- Case 2: only additive noise (only epsilon2, epsilon1=0)
 ####
 

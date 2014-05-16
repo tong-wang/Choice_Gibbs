@@ -11,7 +11,7 @@ source(file="Metropolis-Hastings.R")
 
 
 
-## Load simulated choice data (NEED TO RUN MNL_InitData.binary.R TO GENERATE THE DATA FIRST)
+## Load simulated choice data (NEED TO RUN MNL_InitData.binary.L1.R TO GENERATE THE DATA FIRST)
 load(file="MNL_InitData.binary.L1.RData")
 
 # final observation consists of the Sales and Stockout status
