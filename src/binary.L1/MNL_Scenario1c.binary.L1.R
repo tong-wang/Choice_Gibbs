@@ -111,19 +111,6 @@ sample = function(data, parameters, nrun=1000) {
         
         #simulate nopurchase by discrete Metropolis-Hastings
         nopurchase2 <- nopurchase1
-        dMH.accept <- rep(0, K)
-        for (j in 1:K) {
-            dMH <- discreteMH.mvnorm(logpost.nopurchase, start=nopurchase1[j], scale=10, nrun=10, 
-                              demand=demand1[j], lambda=lambda2, beta=beta2, k=j)
-            nopurchase2[j] <- dMH$MC[10]
-            dMH.accept[j] <- dMH$accept
-        }
-        cat("discreteMH acceptance rate was ", mean(dMH.accept), "\t")
-        
-        
-        
-        #simulate nopurchase by discrete Metropolis-Hastings
-        nopurchase2 <- nopurchase1
         demand2 <- demand1
         dMH.accept <- rep(NA, K)
         dMH2.accept <- rep(NA, K)
