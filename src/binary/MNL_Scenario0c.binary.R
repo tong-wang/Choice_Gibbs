@@ -1,6 +1,6 @@
 ####
-# Scenario 1. No-purchase is not observed 
-#
+# Scenario 0c. All choices are observed 
+#    --- but demand is censored by inventory
 ####
 
 Sys.setenv(LANG = "en")
@@ -14,8 +14,8 @@ source(file="Metropolis-Hastings.R")
 ## Load simulated choice data (NEED TO RUN MNL_InitData.binary.R TO GENERATE THE DATA FIRST)
 load(file="MNL_InitData.binary.RData")
 
-# final observation consists of the Demand
-observation1 <- list(demand=Demand)
+# final observation consists of Sales, Stockout status, and Rest
+observation0c <- list(sales=Sales, stockout=Stockout, rest=NoPurchase+LostSales)
 
 
 
@@ -34,15 +34,15 @@ logpost.beta <- function(beta, data) {
 }
 
 
-logpost.nopurchase <- function(nopurchase, demand, lambda, beta, k) {
-    
-    if (any(nopurchase<0))
+logpost.nopurchase <- function(nopurchase, sales, rest, lambda, beta, k) {
+
+    if (any(nopurchase<0) | any(nopurchase>rest))
         return(-Inf)
     else {
         score <- rbind(t(exp(X_Mat[k,] %*% beta)), 1)
         choice.prob <- score/sum(score) # M*N matrix
         
-        dd <- c(demand, nopurchase)
+        dd <- c(sales + rest - nopurchase, nopurchase)
         nn <- sum(dd)
         
         
@@ -55,7 +55,9 @@ logpost.nopurchase <- function(nopurchase, demand, lambda, beta, k) {
 
 sample = function(data, parameters, nrun=1000) {
 
-    demand <- data$demand
+    sales <- data$sales
+    stockout <- data$stockout
+    rest <- data$rest
     
     # initialize arrays to save samples
     lambdas <- array(0, dim=c(nrun, 1))
@@ -65,11 +67,13 @@ sample = function(data, parameters, nrun=1000) {
     # initial parameters
     lambda1 <- parameters$lambda
     beta1 <- parameters$beta
-    nopurchase1 <- parameters$nopurchase
+    nopurchase1 <- rest
     
     
     # start sampling loop
     for(i in 1:nrun) {
+        
+        demand <- sales + rest - nopurchase1
 
         #update posterior of lambda by conjugacy
         alpha2 <- lambda.alpha + sum(demand) + sum(nopurchase1)
@@ -89,14 +93,14 @@ sample = function(data, parameters, nrun=1000) {
         
         #simulate nopurchase by discrete Metropolis-Hastings
         nopurchase2 <- nopurchase1
-        dMH.accept <- rep(0, K)
-        for (j in 1:K) {
+        dMH.accept <- rep(NA, K)
+        for (j in which(stockout)) {
             dMH <- discreteMH.mvnorm(logpost.nopurchase, start=nopurchase1[j], scale=10, nrun=10, 
-                              demand=demand[j], lambda=lambda2, beta=beta2, k=j)
+                          sales=sales[j], rest=rest[j], lambda=lambda2, beta=beta2, k=j)
             nopurchase2[j] <- dMH$MC[10]
             dMH.accept[j] <- dMH$accept
         }
-        cat("discreteMH acceptance rate was ", mean(dMH.accept), "\n\n")
+        cat("discreteMH acceptance rate was ", mean(dMH.accept, na.rm=TRUE), "\n\n")
         
         
         
@@ -131,7 +135,7 @@ lambda.beta <- 0.0001
 
 
 ## initial sampling input
-param0 <- list(lambda=lambda.alpha/lambda.beta, beta=rep(0.1,L), nopurchase=rep(10,K))
+param0 <- list(lambda=lambda.alpha/lambda.beta, beta=rep(0.1,L))
 nrun <- 5000
 burnin <- 0.5
 start <- burnin*nrun+1
@@ -139,10 +143,10 @@ start <- burnin*nrun+1
 
 
 ### sample
-z1 <- sample(data=observation1, parameters=param0, nrun=nrun)
+z0c <- sample(data=observation0c, parameters=param0, nrun=nrun)
 
 
-save(z1, observation1, file="MNL_Scenario1.binary.RData")
+save(z0c, observation0c, file="MNL_Scenario0c.binary.RData")
 
 
 
@@ -151,7 +155,7 @@ save(z1, observation1, file="MNL_Scenario1.binary.RData")
 ### Visualize results
 
 #plot lambda
-samples.lambda <- z1$lambdas
+samples.lambda <- z0c$lambdas
 plot(samples.lambda, type="l")
 
 samples.lambda.truncated <- samples.lambda[start:nrun,]
@@ -161,7 +165,7 @@ hist(samples.lambda.truncated)
 
 
 #plot beta
-samples.beta <- data.frame(z1$betas)
+samples.beta <- data.frame(z0c$betas)
 plot(samples.beta$X1, type="l")
 plot(samples.beta$X2, type="l")
 
@@ -176,19 +180,19 @@ hist(samples.beta.truncated$X2)
 
 ### save plots
 require(ggplot2)
-pdf('MNL_Scenario1.binary.lambda.pdf', width = 8, height = 8)
+pdf('MNL_Scenario0c.binary.lambda.pdf', width = 8, height = 8)
 ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black")
 dev.off()
-pdf('MNL_Scenario1.binary.beta1.pdf', width = 8, height = 8)
+pdf('MNL_Scenario0c.binary.beta1.pdf', width = 8, height = 8)
 ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
 dev.off()
-pdf('MNL_Scenario1.binary.beta2.pdf', width = 8, height = 8)
+pdf('MNL_Scenario0c.binary.beta2.pdf', width = 8, height = 8)
 ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
 dev.off()
 
 
 #plot nopurchase[1]
-samples.nopurchase <- data.frame(z1$nopurchases)
+samples.nopurchase <- data.frame(z0c$nopurchases)
 plot(samples.nopurchase$X1, type="l")
 plot(samples.nopurchase$X2, type="l")
 plot(samples.nopurchase$X3, type="l")
@@ -201,6 +205,4 @@ quantile(samples.nopurchase.truncated$X3, c(.025,.5,.975))
 hist(samples.nopurchase.truncated$X1)
 hist(samples.nopurchase.truncated$X2)
 hist(samples.nopurchase.truncated$X3)
-
-
 

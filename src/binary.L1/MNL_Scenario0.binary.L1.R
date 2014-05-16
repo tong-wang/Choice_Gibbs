@@ -10,17 +10,16 @@ require("mvtnorm")
 source(file="Metropolis-Hastings.R")
 
 
-## Load simulated choice data (NEED TO RUN MNL_InitData.binary.R TO GENERATE THE DATA FIRST)
+
+## Load simulated choice data (NEED TO RUN MNL_InitData.binary.L1.R TO GENERATE THE DATA FIRST)
 load(file="MNL_InitData.binary.L1.RData")
 
-
-
+# final observation consists of Demand, and NoPurchase
 observation0 <- list(demand=Demand, nopurchase=NoPurchase)
 
 
 
-### Estimating beta by M-H sampling
-# log-posterior of beta, to be called by M-H algorithm
+#log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
     
     score <- rbind(t(exp(X_Mat %*% beta)), 1)
@@ -42,18 +41,16 @@ beta.mu <- rep(0, L)
 beta.sg <- 100*diag(L)
 
 
-nrun <- 10000
+nrun <- 5000
 burnin <- 0.5
 start <- burnin*nrun+1
 
 
 #direct sampling beta
-MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=0.08, start=rep(0.1, L), nrun = nrun, data=rbind(observation0$demand, observation0$nopurchase))
+MH <- MH.mvnorm(logpost.beta, start=rep(0.1, L), scale=0.08, nrun=nrun, data=rbind(observation0$demand, observation0$nopurchase))
 cat("MH acceptance rate: ", MH$accept, "\n")
 
 betas <- MH$MC
-plot(betas, type="l")
-
 beta.estm <- mean(betas[start:nrun,])
 
 
@@ -64,12 +61,12 @@ lambda.alpha <- 0.005
 lambda.beta <- 0.0001
 
 #update posterior of lambda by conjugacy
-alpha2 <- lambda.alpha + sum(observation0$demand + observation0$nopurchase)
+alpha2 <- lambda.alpha + sum(observation0$demand, observation0$nopurchase)
 beta2 <- lambda.beta + K
 
 lambda.estm <- alpha2/beta2
 
-score.estm <- exp(matrix(X_Mean, M-1,L) %*% beta.estm)
+score.estm <- exp(matrix(X_Mean, M-1, L) %*% beta.estm)
 score.estm <- c(score.estm, 1)
 choice.prob.estm <- score.estm / sum(score.estm)
 demand.estm <- lambda.estm * choice.prob.estm
@@ -87,18 +84,15 @@ save(z0, observation0, file="MNL_Scenario0.binary.L1.RData")
 samples.lambda <- z0$lambdas
 plot(samples.lambda, type="l")
 
-
 samples.lambda.truncated <- samples.lambda[start:nrun]
 quantile(samples.lambda.truncated, c(.025,.5,.975))
 mean(samples.lambda.truncated)
 hist(samples.lambda.truncated)
 
 
-
 #plot beta
 samples.beta <- z0$betas
 plot(samples.beta, type="l")
-
 
 samples.beta.truncated <- samples.beta[start:nrun]
 quantile(samples.beta.truncated, c(.025,.5,.975))

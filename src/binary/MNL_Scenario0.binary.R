@@ -10,17 +10,16 @@ require("mvtnorm")
 source(file="Metropolis-Hastings.R")
 
 
+
 ## Load simulated choice data (NEED TO RUN MNL_InitData.binary.R TO GENERATE THE DATA FIRST)
 load(file="MNL_InitData.binary.RData")
 
-
-
+# final observation consists of Demand, and NoPurchase
 observation0 <- list(demand=Demand, nopurchase=NoPurchase)
 
 
 
-### Estimating beta by M-H sampling
-# log-posterior of beta, to be called by M-H algorithm
+#log-posterior of beta, to be called by M-H algorithm
 logpost.beta <- function(beta, data) {
     
     score <- rbind(t(exp(X_Mat %*% beta)), 1)
@@ -42,19 +41,16 @@ beta.mu <- rep(0, L)
 beta.sg <- 100*diag(L)
 
 
-nrun <- 10000
+nrun <- 5000
 burnin <- 0.5
 start <- burnin*nrun+1
 
 
 #direct sampling beta
-MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=c(0.04, 0.03), start=rep(0.1, L), nrun = nrun, data=rbind(observation0$demand, observation0$nopurchase))
+MH <- MH.mvnorm(logpost.beta, start=rep(0.1, L), scale=c(0.04, 0.03), nrun=nrun, data=rbind(observation0$demand, observation0$nopurchase))
 cat("MH acceptance rate: ", MH$accept, "\n")
 
 betas <- MH$MC
-plot(betas[,1], type="l")
-plot(betas[,2], type="l")
-
 beta.estm <- colMeans(betas[start:nrun,])
 
 
@@ -88,19 +84,16 @@ save(z0, observation0, file="MNL_Scenario0.binary.RData")
 samples.lambda <- z0$lambdas
 plot(samples.lambda, type="l")
 
-
 samples.lambda.truncated <- samples.lambda[start:nrun]
 quantile(samples.lambda.truncated, c(.025,.5,.975))
 mean(samples.lambda.truncated)
 hist(samples.lambda.truncated)
 
 
-
 #plot beta
 samples.beta <- data.frame(z0$betas)
 plot(samples.beta$X1, type="l")
 plot(samples.beta$X2, type="l")
-
 
 samples.beta.truncated <- samples.beta[start:nrun,]
 quantile(samples.beta.truncated$X1, c(.025,.5,.975))

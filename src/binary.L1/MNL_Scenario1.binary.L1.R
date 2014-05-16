@@ -14,9 +14,9 @@ source(file="Metropolis-Hastings.R")
 ## Load simulated choice data (NEED TO RUN MNL_InitData.binary.R TO GENERATE THE DATA FIRST)
 load(file="MNL_InitData.binary.L1.RData")
 
-
-
+# final observation consists of the Demand
 observation1 <- list(demand=Demand)
+
 
 
 #log-posterior of beta, to be called by M-H algorithm
@@ -34,16 +34,15 @@ logpost.beta <- function(beta, data) {
 }
 
 
-
-logpost.d0 <- function(d0, data, lambda, beta, k) {
+logpost.nopurchase <- function(nopurchase, demand, lambda, beta, k) {
     
-    if (any(d0<0))
+    if (any(nopurchase<0))
         return(-Inf)
     else {
         score <- rbind(t(exp(X_Mat[k,] %*% beta)), 1)
         choice.prob <- score/sum(score) # M*N matrix
         
-        dd <- c(data,d0)
+        dd <- c(demand, nopurchase)
         nn <- sum(dd)
         
         
@@ -56,24 +55,24 @@ logpost.d0 <- function(d0, data, lambda, beta, k) {
 
 sample = function(data, parameters, nrun=1000) {
 
-    demand = data$demand
+    demand <- data$demand
     
     # initialize arrays to save samples
-    lambdas = array(0, dim=c(nrun, 1))
-    d0s = array(0, dim=c(nrun, K))
-    betas = array(0, dim=c(nrun, L))
+    lambdas <- array(0, dim=c(nrun, 1))
+    betas <- array(0, dim=c(nrun, L))
+    nopurchases <- array(0, dim=c(nrun, K))
     
     # initial parameters
     lambda1 <- parameters$lambda
-    d01 <- parameters$d0
     beta1 <- parameters$beta
+    nopurchase1 <- parameters$nopurchase
     
     
     # start sampling loop
     for(i in 1:nrun) {
 
         #update posterior of lambda by conjugacy
-        alpha2 <- lambda.alpha + sum(demand) + sum(d01)
+        alpha2 <- lambda.alpha + sum(demand) + sum(nopurchase1)
         beta2 <- lambda.beta + K
         
         #simulate lambda2
@@ -82,38 +81,39 @@ sample = function(data, parameters, nrun=1000) {
         
         
         #simulate beta2 by Metropolis-Hastings
-        MH <- MH.mvnorm(logpost.beta, sigma=diag(L), scale=0.1, start=beta1, nrun = 10, data=rbind(demand,d01))
+        MH <- MH.mvnorm(logpost.beta, start=beta1, scale=0.1, nrun=10, data=rbind(demand, nopurchase1))
         beta2 <- MH$MC[10,]
         cat("MH acceptance rate: ", MH$accept, "\n")
         
-
-        #simulate d0 by discrete Metropolis-Hastings
-        d02 <- d01
-        d0.accept <- rep(0, K)
+        
+        
+        #simulate nopurchase by discrete Metropolis-Hastings
+        nopurchase2 <- nopurchase1
+        dMH.accept <- rep(0, K)
         for (j in 1:K) {
-            sim <- discreteMH.norm(logpost.d0, start=d01[j], scale=10, nrun=10, 
-                              data=demand[j], lambda=lambda2, beta=beta2, k=j)
-            d02[j] <- sim$MC[10]
-            d0.accept[j] <- sim$accept
+            dMH <- discreteMH.mvnorm(logpost.nopurchase, start=nopurchase1[j], scale=10, nrun=10, 
+                              demand=demand[j], lambda=lambda2, beta=beta2, k=j)
+            nopurchase2[j] <- dMH$MC[10]
+            dMH.accept[j] <- dMH$accept
         }
-        cat("discreteMH acceptance rate was ", mean(d0.accept), "\n\n")
+        cat("discreteMH acceptance rate was ", mean(dMH.accept), "\n\n")
         
         
-
+        
         # save the samples obtained in the current iteration
-        lambdas[i,] = lambda2
-        d0s[i,] = d02
-        betas[i,] = beta2
+        lambdas[i,] <- lambda2
+        betas[i,] <- beta2
+        nopurchases[i,] <- nopurchase2
         
-        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\td0[1]:", d02[1], "\n", sep=" ")
+        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\tnopurchase[1]:", nopurchase2[1], "\n", sep=" ")
         
         lambda1 <- lambda2
-        d01 <- d02
         beta1 <- beta2
+        nopurchase1 <- nopurchase2
     }
     
     # results
-    return(list(lambdas=lambdas, d0s=d0s, betas=betas))
+    return(list(lambdas=lambdas, betas=betas, nopurchases=nopurchases))
 
 } # end function 'sample'
 
@@ -131,9 +131,10 @@ lambda.beta <- 0.0001
 
 
 ## initial sampling input
-param0 <- list(beta=rep(0.1, L), lambda=lambda.alpha/lambda.beta, d0=rep(10,K))
+param0 <- list(lambda=lambda.alpha/lambda.beta, beta=rep(0.1,L), nopurchase=rep(10,K))
 nrun <- 5000
 burnin <- 0.5
+start <- burnin*nrun+1
 
 
 
@@ -148,12 +149,10 @@ save(z1, observation1, file="MNL_Scenario1.binary.L1.RData")
 
 
 ### Visualize results
-start <- burnin*nrun+1
 
 #plot lambda
 samples.lambda <- z1$lambdas
 plot(samples.lambda, type="l")
-
 
 samples.lambda.truncated <- samples.lambda[start:nrun,]
 quantile(samples.lambda.truncated, c(.025,.5,.975))
@@ -161,12 +160,9 @@ mean(samples.lambda.truncated)
 hist(samples.lambda.truncated)
 
 
-
 #plot beta
 samples.beta <- z1$betas
 plot(samples.beta, type="l")
-
-
 
 samples.beta.truncated <- samples.beta[start:nrun,]
 quantile(samples.beta.truncated, c(.025,.5,.975))
@@ -184,28 +180,20 @@ ggplot(data=data.frame(samples.beta.truncated)) + geom_density(aes(x=samples.bet
 dev.off()
 
 
+#plot nopurchase[1]
+samples.nopurchase <- data.frame(z1$nopurchases)
+plot(samples.nopurchase$X1, type="l")
+plot(samples.nopurchase$X2, type="l")
+plot(samples.nopurchase$X3, type="l")
 
-#plot d0[1]
-samples.d0 <- data.frame(z1$d0s)
-plot(samples.d0$X1, type="l")
-plot(samples.d0$X2, type="l")
-plot(samples.d0$X3, type="l")
-plot(samples.d0$X4, type="l")
-plot(samples.d0$X5, type="l")
-
-
-samples.d0.truncated <- samples.d0[start:nrun,]
-quantile(samples.d0.truncated$X1, c(.025,.5,.975))
-quantile(samples.d0.truncated$X2, c(.025,.5,.975))
-quantile(samples.d0.truncated$X3, c(.025,.5,.975))
-quantile(samples.d0.truncated$X4, c(.025,.5,.975))
-quantile(samples.d0.truncated$X5, c(.025,.5,.975))
-colMeans(samples.d0.truncated)
-hist(samples.d0.truncated$X1)
-hist(samples.d0.truncated$X2)
-hist(samples.d0.truncated$X3)
-hist(samples.d0.truncated$X4)
-hist(samples.d0.truncated$X5)
+samples.nopurchase.truncated <- samples.nopurchase[start:nrun,]
+colMeans(samples.nopurchase.truncated)
+quantile(samples.nopurchase.truncated$X1, c(.025,.5,.975))
+quantile(samples.nopurchase.truncated$X2, c(.025,.5,.975))
+quantile(samples.nopurchase.truncated$X3, c(.025,.5,.975))
+hist(samples.nopurchase.truncated$X1)
+hist(samples.nopurchase.truncated$X2)
+hist(samples.nopurchase.truncated$X3)
 
 
 
