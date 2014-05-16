@@ -12,13 +12,13 @@
 
 # implementation of Metropolis-Hastings algorithm with multivariate Normal proposal
 # tested for one- and high-dimensional distribution
-MH.mvnorm <- function (logpost, start, sigma, scale, nrun, ...) 
+MH.mvnorm <- function (logpost, start, sigma=diag(length(start)), scale=1, nrun=1000, ...) 
 {
     dim = length(start)
     MC = array(0, c(nrun, dim))
-    a = chol(sigma)
     b1 = start
     ll.b1 = logpost(start, ...)
+    a = chol(sigma)
 
 
     accept = 0
@@ -46,7 +46,7 @@ MH.mvnorm <- function (logpost, start, sigma, scale, nrun, ...)
 
 # implementation of discrete Metropolis-Hastings algorithm with discretized symmetric univariate Normal proposal
 # tested for one- and high-dimensional discrete distribution
-discreteMH.norm <- function (logpost, start, scale, nrun, ...) 
+discreteMH.norm <- function (logpost, start, scale=1, nrun=1000, ...) 
 {
     dim = length(start)
     MC = array(0, c(nrun, dim))
@@ -71,6 +71,41 @@ discreteMH.norm <- function (logpost, start, scale, nrun, ...)
         }
         MC[i, ] = b1
         
+    }
+    accept = accept/nrun
+    
+    list(MC = MC, accept = accept)
+}
+
+
+# implementation of discrete Metropolis-Hastings algorithm with discretized symmetric multivariate Normal proposal
+# tested for one- or high-dimensional discrete distribution
+discreteMH.mvnorm <-function (logpost, start, sigma=diag(length(start)), scale=1, nrun=1000, ...) 
+{
+    dim = length(start)
+    MC = array(0, c(nrun, dim))
+    b1 = start
+    ll.b1 = logpost(start, ...)
+    a = chol(sigma)
+
+    
+    accept = 0
+    for (i in 1:nrun) {
+        #proposed next point is discrete Multivariate Normal using the current position as its mean, variance is controled by $sigma$ and $scale$
+        b2 = as.vector(round(b1 + scale * a %*% rnorm(dim)))
+        
+        ll.b2 = logpost(b2, ...) 
+        ll.ratio = exp(ll.b2 - ll.b1)
+        
+        if (!is.na(ll.ratio)) {
+            if (runif(1) <= ll.ratio) {
+                ll.b1 = ll.b2
+                b1 = b2
+                accept = accept + 1
+            }
+        }
+        MC[i, ] = b1
+
     }
     accept = accept/nrun
     
