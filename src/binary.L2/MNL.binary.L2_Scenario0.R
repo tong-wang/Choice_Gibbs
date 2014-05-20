@@ -4,24 +4,27 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary.L2")
 
 require("mvtnorm")
 source(file="Metropolis-Hastings.R")
 
 
 
-## Load simulated choice data (NEED TO RUN MNL_InitData.binary.R TO GENERATE THE DATA FIRST)
-load(file="MNL_InitData.binary.RData")
+scenarioName <- "MNL.binary.L2_Scenario0"
+
+## Load simulated choice data (NEED TO RUN MNL_InitData.binary.L1.R TO GENERATE THE DATA FIRST)
+load(file="MNL.binary.L2_InitData.RData")
 
 # final observation consists of Demand, and NoPurchase
 observation0 <- list(demand=Demand, nopurchase=NoPurchase)
 
 
 
-#log-posterior of beta, to be called by M-H algorithm
-logpost.beta <- function(beta, data) {
+#log-posterior of betaT, to be called by M-H algorithm
+logpost.betaT <- function(betaT, data) {
     
+    beta <- c(betaT[1], betaT[2:L]*betaT[1])
     score <- rbind(t(exp(X_Mat %*% beta)), 1)
     choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
     
@@ -30,7 +33,7 @@ logpost.beta <- function(beta, data) {
     logprior <- dmvnorm(beta, mean=beta.mu, sigma=beta.sg, log=TRUE)
     
     return(sum(logLikelihood) + logprior)
-
+    
 }
 
 
@@ -46,13 +49,11 @@ burnin <- 0.5
 start <- burnin*nrun+1
 
 
-#direct sampling beta
-MH <- MH.mvnorm(logpost.beta, start=rep(0.1, L), scale=c(0.04, 0.03), nrun=nrun, data=rbind(observation0$demand, observation0$nopurchase))
+### direct sampling beta
+MH <- MH.mvnorm(logpost.betaT, start=rep(0, L), scale=c(0.1, 0.02), nrun=nrun*10, thin=10, data=rbind(observation0$demand, observation0$nopurchase))
 cat("MH acceptance rate: ", MH$accept, "\n")
-
-betas <- MH$MC
-beta.estm <- colMeans(betas[start:nrun,])
-
+betaTs <- MH$MC
+betas <- cbind(betaTs[,1], betaTs[,2:L]*betaTs[,1])
 
 ### Estimate lambda by conjugate prior
 
@@ -61,22 +62,15 @@ lambda.alpha <- 0.005
 lambda.beta <- 0.0001
 
 #update posterior of lambda by conjugacy
-alpha2 <- lambda.alpha + sum(observation0$demand, observation0$nopurchase)
-beta2 <- lambda.beta + K
-
-lambda.estm <- alpha2/beta2
-
-score.estm <- exp(matrix(X_Mean, M-1, L) %*% beta.estm)
-score.estm <- c(score.estm, 1)
-choice.prob.estm <- score.estm / sum(score.estm)
-demand.estm <- lambda.estm * choice.prob.estm
+lambda.alpha2 <- lambda.alpha + sum(observation0$demand, observation0$nopurchase)
+lambda.beta2 <- lambda.beta + K
 
 
 
+### save results
+z0 <- list(lambdas=rgamma(nrun, shape=lambda.alpha2, rate=lambda.beta2), betas=betas)
 
-z0 <- list(lambdas=rgamma(nrun, shape=alpha2, rate=beta2), betas=betas)
-
-save(z0, observation0, file="MNL_Scenario0.binary.RData")
+save(z0, observation0, file=paste0(scenarioName, ".RData"))
 
 
 
@@ -106,20 +100,14 @@ hist(samples.beta.truncated$X2)
 ### save plots
 require(ggplot2)
 
-pdf('MNL_Scenario0.binary.lambda.pdf', width = 8, height = 8)
+pdf(paste0(scenarioName, ".lambda.pdf"), width = 8, height = 8)
 ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black")
 dev.off()
 
-pdf('MNL_Scenario0.binary.beta1.pdf', width = 8, height = 8)
+pdf(paste0(scenarioName, ".beta1.pdf"), width = 8, height = 8)
 ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
 dev.off()
 
-pdf('MNL_Scenario0.binary.beta2.pdf', width = 8, height = 8)
+pdf(paste0(scenarioName, ".betaL.pdf"), width = 8, height = 8)
 ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
 dev.off()
-
-
-
-
-
-

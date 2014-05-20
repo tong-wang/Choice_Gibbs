@@ -6,24 +6,27 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary.L1")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary.L2")
 
 require("mvtnorm")
 source(file="Metropolis-Hastings.R")
 
 
 
+scenarioName <- "MNL.binary.L2_Scenario3M.m"
+
 ## Load simulated choice data (NEED TO RUN MNL_InitData.binary.L1.R TO GENERATE THE DATA FIRST)
-load(file="MNL_InitData.binary.L1.RData")
+load(file="MNL.binary.L2_InitData.RData")
 
 # final observation consists of the Demand and the Traffic flow
-observation3.m <- list(demand=Demand, traffic=Traffic.m)
+observation3M.m <- list(demand=Demand, traffic=TrafficM.m)
 
 
 
-#log-posterior of beta, to be called by M-H algorithm
-logpost.beta <- function(beta, data) {
+#log-posterior of betaT, to be called by M-H algorithm
+logpost.betaT <- function(betaT, data) {
     
+    beta <- c(betaT[1], betaT[2:L]*betaT[1])
     score <- rbind(t(exp(X_Mat %*% beta)), 1)
     choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
     
@@ -67,7 +70,7 @@ sample = function(data, parameters, nrun=1000) {
     nopurchases <- array(0, dim=c(nrun, K))
     
     # initial parameters
-    lambda1 <- parameters$lambda
+    #lambda1 <- parameters$lambda
     beta1 <- parameters$beta
     #eps1.mu1 <- parameters$eps1.mu
     eps1.sd1 <- parameters$eps1.sd
@@ -87,8 +90,10 @@ sample = function(data, parameters, nrun=1000) {
         
         
         #simulate beta2 by Metropolis-Hastings
-        MH <- MH.mvnorm(logpost.beta, start=beta1, scale=0.1, nrun=10, data=rbind(demand, nopurchase1))
-        beta2 <- MH$MC[10,]
+        betaT1 <- c(beta1[1], beta1[2:L]/beta1[1])
+        MH <- MH.mvnorm(logpost.betaT, start=betaT1, scale=c(0.2, 0.04), nrun=10, data=rbind(demand, nopurchase1))
+        betaT2 <- MH$MC[10,]
+        beta2 <- c(betaT2[1], betaT2[2:L]*betaT2[1])
         cat("MH acceptance rate: ", MH$accept, "\n")
 
 
@@ -152,7 +157,7 @@ eps1.pr.alpha0 <- 0.0000001 #0.0001
 eps1.pr.beta0 <- 0.000000001 #0.0001
 
 ## initial sampling input
-param0 <- list(lambda=lambda.alpha/lambda.beta, beta=rep(0.1, L), eps1.sd=eps1.pr.alpha0/eps1.pr.beta0, nopurchase=rep(10,K))
+param0 <- list(beta=rep(1, L), eps1.sd=eps1.pr.alpha0/eps1.pr.beta0, nopurchase=rep(10,K))
 nrun <- 5000
 burnin <- 0.5
 start <- burnin*nrun+1
@@ -160,9 +165,9 @@ start <- burnin*nrun+1
 
 
 ### sample
-z3.m <- sample(data=observation3.m, parameters=param0, nrun=nrun)
+z3M.m <- sample(data=observation3M.m, parameters=param0, nrun=nrun)
 
-save(z3.m, observation3.m, file="MNL_Scenario3_M.binary.L1.m.RData")
+save(z3M.m, observation3M.m, file=paste0(scenarioName, ".RData"))
 
 
 
@@ -170,7 +175,7 @@ save(z3.m, observation3.m, file="MNL_Scenario3_M.binary.L1.m.RData")
 ### Visualize results
 
 #plot lambda
-samples.lambda <- z3.m$lambdas
+samples.lambda <- z3M.m$lambdas
 plot(samples.lambda, type="l")
 
 samples.lambda.truncated <- samples.lambda[start:nrun,]
@@ -180,27 +185,36 @@ hist(samples.lambda.truncated)
 
 
 #plot beta
-samples.beta <- z3.m$betas
-plot(samples.beta, type="l")
+samples.beta <- data.frame(z3M.m$betas)
+plot(samples.beta$X1, type="l")
+plot(samples.beta$X2, type="l")
 
 samples.beta.truncated <- samples.beta[start:nrun,]
-quantile(samples.beta.truncated, c(.025,.5,.975))
-mean(samples.beta.truncated)
-hist(samples.beta.truncated)
+quantile(samples.beta.truncated$X1, c(.025,.5,.975))
+quantile(samples.beta.truncated$X2, c(.025,.5,.975))
+colMeans(samples.beta.truncated)
+hist(samples.beta.truncated$X1)
+hist(samples.beta.truncated$X2)
 
 
 ### save plots
 require(ggplot2)
-pdf('MNL_Scenario3_M.binary.L1.lambda.m.pdf', width = 8, height = 8)
+
+pdf(paste0(scenarioName, ".lambda.pdf"), width = 8, height = 8)
 ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black")
 dev.off()
-pdf('MNL_Scenario3_M.binary.L1.beta.m.pdf', width = 8, height = 8)
-ggplot(data=data.frame(samples.beta.truncated)) + geom_density(aes(x=samples.beta.truncated), color="black")
+
+pdf(paste0(scenarioName, ".beta1.pdf"), width = 8, height = 8)
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
+dev.off()
+
+pdf(paste0(scenarioName, ".betaL.pdf"), width = 8, height = 8)
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
 dev.off()
 
 
 #plot eps1.mu and eps1.sd
-samples.eps1 <- data.frame(mu=z3.m$eps1.mus, sd=z3.m$eps1.sds)
+samples.eps1 <- data.frame(mu=z3M.m$eps1.mus, sd=z3M.m$eps1.sds)
 plot(samples.eps1$mu, type="l")
 plot(samples.eps1$sd, type="l")
 
@@ -213,7 +227,7 @@ hist(samples.eps1.truncated$sd)
 
 
 #plot nopurchase[1]
-samples.nopurchase <- data.frame(z3.m$nopurchases)
+samples.nopurchase <- data.frame(z3M.m$nopurchases)
 plot(samples.nopurchase$X1, type="l")
 plot(samples.nopurchase$X2, type="l")
 plot(samples.nopurchase$X3, type="l")
