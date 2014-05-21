@@ -4,44 +4,47 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary.L2")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M2.L1")
 
 require("mvtnorm")
 source(file="Metropolis-Hastings.R")
 
 
 
-scenarioName <- "MNL.binary.L2_Scenario0"
+scenarioName <- "MNL.M2.L1_Scenario0"
 
-## Load simulated choice data (NEED TO RUN MNL_InitData.binary.L1.R TO GENERATE THE DATA FIRST)
-load(file="MNL.binary.L2_InitData.RData")
+## Load simulated choice data (NEED TO RUN MNL_InitData.R TO GENERATE THE DATA FIRST)
+load(file="MNL.M2.L1_InitData.RData")
 
 # final observation consists of Demand, and NoPurchase
 observation0 <- list(demand=Demand, nopurchase=NoPurchase)
 
 
 
-#log-posterior of betaT, to be called by M-H algorithm
+# log-posterior of beta, to be called by M-H algorithm
 logpost.betaT <- function(betaT, data) {
     
-    beta <- c(betaT[1], betaT[2:L]*betaT[1])
-    score <- rbind(t(exp(X_Mat %*% beta)), 1)
-    choice.prob <- apply(score, 2, function(x) x/sum(x)) # M*N matrix
+    beta <- c(betaT[1], betaT[2:(L+M)]*betaT[1])
+    beta.coef <- beta[1:L]
+    beta.const <- beta[(L+1):(L+M)]
+    
+    score <- rbind(apply(X_Mat, 1, function (x) exp(beta.const + matrix(x, nrow=M, ncol=L) %*% beta.coef)), 1)
+    choice.prob <- apply(score, 2, function(x) x/sum(x))
     
     logLikelihood <- data*log(choice.prob)
     
     logprior <- dmvnorm(beta, mean=beta.mu, sigma=beta.sg, log=TRUE)
     
     return(sum(logLikelihood) + logprior)
-    
+
 }
 
 
 
 ## initialize input before sampling
 # beta prior ~ N(beta.mu, beta.sg)
-beta.mu <- rep(0, L)
-beta.sg <- 100*diag(L)
+beta.mu <- rep(0, L+M)
+beta.sg <- 100*diag(L+M)
 
 
 nrun <- 5000
@@ -50,10 +53,11 @@ start <- burnin*nrun+1
 
 
 ### direct sampling beta
-MH <- MH.mvnorm(logpost.betaT, start=rep(0, L), scale=c(0.1, 0.02), nrun=nrun*10, thin=10, data=rbind(observation0$demand, observation0$nopurchase))
+MH <- MH.mvnorm(logpost.betaT, start=c(-1, -1, -1), scale=c(0.1, 0.02, 0.02), nrun=nrun*10, thin=10, data=rbind(observation0$demand, observation0$nopurchase))
 cat("MH acceptance rate: ", MH$accept, "\n")
 betaTs <- MH$MC
-betas <- cbind(betaTs[,1], betaTs[,2:L]*betaTs[,1])
+betas <- cbind(betaTs[,1], betaTs[,2:(L+M)]*betaTs[,1])
+
 
 ### Estimate lambda by conjugate prior
 
@@ -79,8 +83,8 @@ samples.lambda <- z0$lambdas
 plot(samples.lambda, type="l")
 
 samples.lambda.truncated <- samples.lambda[start:nrun]
-quantile(samples.lambda.truncated, c(.025,.5,.975))
 mean(samples.lambda.truncated)
+quantile(samples.lambda.truncated, c(.025,.5,.975))
 hist(samples.lambda.truncated)
 
 
@@ -88,11 +92,12 @@ hist(samples.lambda.truncated)
 samples.beta <- data.frame(z0$betas)
 plot(samples.beta$X1, type="l")
 plot(samples.beta$X2, type="l")
+plot(samples.beta$X3, type="l")
 
 samples.beta.truncated <- samples.beta[start:nrun,]
+colMeans(samples.beta.truncated)
 quantile(samples.beta.truncated$X1, c(.025,.5,.975))
 quantile(samples.beta.truncated$X2, c(.025,.5,.975))
-colMeans(samples.beta.truncated)
 hist(samples.beta.truncated$X1)
 hist(samples.beta.truncated$X2)
 
@@ -104,10 +109,13 @@ pdf(paste0(scenarioName, ".lambda.pdf"), width = 8, height = 8)
 ggplot(data=data.frame(samples.lambda.truncated)) + geom_density(aes(x=samples.lambda.truncated), color="black")
 dev.off()
 
-pdf(paste0(scenarioName, ".beta1.pdf"), width = 8, height = 8)
+pdf(paste0(scenarioName, ".beta.coef.pdf"), width = 8, height = 8)
 ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
 dev.off()
 
-pdf(paste0(scenarioName, ".betaL.pdf"), width = 8, height = 8)
+pdf(paste0(scenarioName, ".beta.const.pdf"), width = 8, height = 8)
 ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X3), color="black")
 dev.off()
+
+

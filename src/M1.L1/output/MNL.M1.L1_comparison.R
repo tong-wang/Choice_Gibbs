@@ -1,21 +1,23 @@
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/binary.L2/output/K90L50")
+require("ggplot2")
 
-load("MNL.binary.L2_Scenario0.RData")
-load("MNL.binary.L2_Scenario1.RData")
-load("MNL.binary.L2_Scenario3M.xl.RData")
-load("MNL.binary.L2_Scenario3M.l.RData")
-load("MNL.binary.L2_Scenario3M.m.RData")
-load("MNL.binary.L2_Scenario3M.h.RData")
-load("MNL.binary.L2_Scenario3M.xh.RData")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L1/output/K90L50")
+
+load("MNL.M1.L1_Scenario0.RData")
+load("MNL.M1.L1_Scenario1.RData")
+load("MNL.M1.L1_Scenario3M.xl.RData")
+load("MNL.M1.L1_Scenario3M.l.RData")
+load("MNL.M1.L1_Scenario3M.m.RData")
+load("MNL.M1.L1_Scenario3M.h.RData")
+load("MNL.M1.L1_Scenario3M.xh.RData")
 
 
-load("MNL.binary.L2_Scenario0c.RData")
-load("MNL.binary.L2_Scenario1c.RData")
-load("MNL.binary.L2_Scenario3Mc.xl.RData")
-load("MNL.binary.L2_Scenario3Mc.l.RData")
-load("MNL.binary.L2_Scenario3Mc.m.RData")
-load("MNL.binary.L2_Scenario3Mc.h.RData")
-load("MNL.binary.L2_Scenario3Mc.xh.RData")
+load("MNL.M1.L1_Scenario0c.RData")
+load("MNL.M1.L1_Scenario1c.RData")
+load("MNL.M1.L1_Scenario3Mc.xl.RData")
+load("MNL.M1.L1_Scenario3Mc.l.RData")
+load("MNL.M1.L1_Scenario3Mc.m.RData")
+load("MNL.M1.L1_Scenario3Mc.h.RData")
+load("MNL.M1.L1_Scenario3Mc.xh.RData")
 
 
 nrun <- 50000
@@ -25,11 +27,7 @@ start <- burnin*nrun+1
 
 
 
-
-
 ### Visualize results
-require(ggplot2)
-
 
 #plot lambda (true lambda=50)
 lam <- data.frame(
