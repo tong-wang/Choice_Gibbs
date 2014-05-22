@@ -4,17 +4,17 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L1")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M2.L2")
 
 require("mvtnorm")
 source(file="Metropolis-Hastings.R")
 
 
 
-scenarioName <- "MNL.M1.L1_Scenario1"
+scenarioName <- "MNL.M2.L2_Scenario1"
 
-## Load simulated choice data (NEED TO RUN MNL_InitData.binary.L1.R TO GENERATE THE DATA FIRST)
-load(file="MNL.M1.L1_InitData.RData")
+## Load simulated choice data (NEED TO RUN MNL_InitData.R TO GENERATE THE DATA FIRST)
+load(file="MNL.M2.L2_InitData.RData")
 
 # final observation consists of the Demand
 observation1 <- list(demand=Demand)
@@ -28,7 +28,7 @@ logpost.betaT <- function(betaT, data) {
     beta.coef <- beta[1:L]
     beta.const <- beta[(L+1):(L+M)]
     
-    score <- rbind(t(exp(beta.const + X_Mat %*% beta.coef)), 1)
+    score <- rbind(apply(X_Mat, 1, function (x) exp(beta.const + matrix(x, nrow=M, ncol=L) %*% beta.coef)), 1)
     choice.prob <- apply(score, 2, function(x) x/sum(x))
     
     logLikelihood <- data*log(choice.prob)
@@ -48,22 +48,23 @@ logpost.nopurchase <- function(nopurchase, demand, lambda, beta, k) {
         beta.coef <- beta[1:L]
         beta.const <- beta[(L+1):(L+M)]
         
-        score <- rbind(exp(beta.const + X_Mat[k,] %*% beta.coef), 1)
+        score <- rbind(exp(beta.const + matrix(X_Mat[k,], nrow=M, ncol=L) %*% beta.coef), 1)
         choice.prob <- score/sum(score)
         
         dd <- c(demand, nopurchase)
         nn <- sum(dd)
-        
-        
+    
+    
         return(dmultinom(x=dd, prob=choice.prob, log=TRUE) + dpois(nn, lambda, log=TRUE))
-        
+
     }
 }
 
 
+
 sample = function(data, parameters, nrun=1000) {
 
-    demand <- data$demand
+    demand = data$demand
     
     # initialize arrays to save samples
     lambdas <- array(0, dim=c(nrun, 1))
@@ -90,7 +91,7 @@ sample = function(data, parameters, nrun=1000) {
         
         #simulate beta2 by Metropolis-Hastings
         betaT1 <- c(beta1[1], beta1[2:(L+M)]/beta1[1])
-        MH <- MH.mvnorm(logpost.betaT, start=betaT1, scale=c(0.3, 0.03), nrun=10, data=rbind(demand, nopurchase1))
+        MH <- MH.mvnorm(logpost.betaT, start=betaT1, scale=c(0.1, 0.01, 0.01, 0.01), nrun=10, data=rbind(demand, nopurchase1))
         betaT2 <- MH$MC[10,]
         beta2 <- c(betaT2[1], betaT2[2:(L+M)]*betaT2[1])
         cat("MH acceptance rate: ", MH$accept, "\n")
@@ -101,15 +102,15 @@ sample = function(data, parameters, nrun=1000) {
         nopurchase2 <- nopurchase1
         dMH.accept <- rep(0, K)
         for (j in 1:K) {
-            dMH <- discreteMH.mvnorm(logpost.nopurchase, start=nopurchase1[j], scale=15, nrun=10, 
-                              demand=demand[j], lambda=lambda2, beta=beta2, k=j)
+            dMH <- discreteMH.mvnorm(logpost.nopurchase, start=nopurchase1[j], scale=10, nrun=10, 
+                              demand=demand[,j], lambda=lambda2, beta=beta2, k=j)
             nopurchase2[j] <- dMH$MC[10]
             dMH.accept[j] <- dMH$accept
         }
         cat("discreteMH acceptance rate was ", mean(dMH.accept), "\n\n")
         
         
-        
+
         # save the samples obtained in the current iteration
         lambdas[i,] <- lambda2
         betas[i,] <- beta2
@@ -141,7 +142,7 @@ lambda.beta <- 0.0001
 
 
 ## initial sampling input
-param0 <- list(beta=c(-1, 1), nopurchase=rep(10, K))
+param0 <- list(beta=c(-1, 1, 1, 1), nopurchase=rep(10,K))
 nrun <- 5000
 burnin <- 0.5
 start <- burnin*nrun+1
@@ -151,7 +152,9 @@ start <- burnin*nrun+1
 ### sample
 z1 <- sample(data=observation1, parameters=param0, nrun=nrun)
 
+
 save(z1, observation1, file=paste0(scenarioName, ".RData"))
+
 
 
 
@@ -169,9 +172,11 @@ hist(samples.lambda.truncated)
 
 
 #plot beta
-samples.beta <- data.frame(z1$betas)
+samples.beta <- data.frame(z0$betas)
 plot(samples.beta$X1, type="l")
 plot(samples.beta$X2, type="l")
+plot(samples.beta$X3, type="l")
+plot(samples.beta$X4, type="l")
 
 samples.beta.truncated <- samples.beta[start:nrun,]
 colMeans(samples.beta.truncated)
@@ -190,10 +195,12 @@ dev.off()
 
 pdf(paste0(scenarioName, ".beta.coef.pdf"), width = 8, height = 8)
 ggplot(data=samples.beta.truncated) + geom_density(aes(x=X1), color="black")
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
 dev.off()
 
 pdf(paste0(scenarioName, ".beta.const.pdf"), width = 8, height = 8)
-ggplot(data=samples.beta.truncated) + geom_density(aes(x=X2), color="black")
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X3), color="black")
+ggplot(data=samples.beta.truncated) + geom_density(aes(x=X4), color="black")
 dev.off()
 
 
@@ -202,6 +209,7 @@ samples.nopurchase <- data.frame(z1$nopurchases)
 plot(samples.nopurchase$X1, type="l")
 plot(samples.nopurchase$X2, type="l")
 plot(samples.nopurchase$X3, type="l")
+
 
 samples.nopurchase.truncated <- samples.nopurchase[start:nrun,]
 colMeans(samples.nopurchase.truncated)
