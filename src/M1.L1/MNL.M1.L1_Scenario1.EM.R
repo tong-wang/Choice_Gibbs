@@ -37,23 +37,6 @@ negLogLikelihood.beta <- function(beta, data) {
 }
 
 
-prob.demand <- function(demand, lambda, beta, k) {
-    
-        beta.coef <- beta[1:L]
-        beta.const <- beta[(L+1):(L+M)]
-        
-        score <- rbind(exp(beta.const + X_Mat[k,] %*% beta.coef), 1)
-        choice.prob <- score/sum(score)
-        
-        total.max <- 200
-        prob <- 0
-        for (total in demand:total.max) {
-            prob <- prob + dmultinom(x=c(demand, total-demand), prob=choice.prob) * dpois(total, lambda)
-        }
-        
-        return(prob)
-}
-
 prob.nopurchase.given.demand <- function(nopurchase, demand, lambda, beta, k) {
     
     if (any(nopurchase<0))
@@ -94,8 +77,6 @@ sample = function(data, parameters, nrun=100) {
         np.max <- 200 # upper limit used in integration
 
         for (j in 1:K) {
-            # first calculate prob(d^k)
-            #denominator <- prob.demand(demand=demand[j], lambda=lambda1, beta=beta1, k=j)
             
             # conditional distribution of nopurchase^k
             prob <- rep(0, np.max+1)
@@ -126,7 +107,7 @@ sample = function(data, parameters, nrun=100) {
         betas[i,] <- beta2
         nopurchases[i,] <- nopurchase2
         
-        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\tnopurchase[1]:", nopurchase2[1], "\tloglikelihood", -opt$value, "\toptim.converge?", opt$convergence, "\n", sep=" ")
+        cat("Run:", i, "\tlambda:", lambda2, "\tbeta2:", beta2, "\tnopurchase[1]:", nopurchase2[1], "\tloglikelihood:", -opt$value, "\toptim.converge?", opt$convergence, "\n", sep=" ")
         
         lambda1 <- lambda2
         beta1 <- beta2
