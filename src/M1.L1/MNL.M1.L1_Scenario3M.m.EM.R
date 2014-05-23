@@ -72,7 +72,7 @@ sample = function(data, parameters, nrun=100) {
     # initial parameters
     lambda <- parameters$lambda
     beta <- parameters$beta
-    eps1.mu <- epsilon1.mean
+    eps1.mu <- parameters$eps1.mu
     eps1.sd <- parameters$eps1.sd
     
     
@@ -111,6 +111,7 @@ sample = function(data, parameters, nrun=100) {
         
         # MLE of eps1.sd (simply sample stdev)
         eps1 <- log(traffic) - log(demand + nopurchase)
+        #eps1.mu <- mean(eps1)
         eps1.sd <- sqrt( sum((eps1 - eps1.mu)^2) / K )
         
         
@@ -121,7 +122,7 @@ sample = function(data, parameters, nrun=100) {
         betas[i,] <- beta
         eps1.sds[i,] <- eps1.sd
         
-        cat("Run:", i, "\tlambda:", lambda, "\tbeta:", beta, "\tnopurchase[1]:", nopurchase[1], "\teps1.sd:", eps1.sd, "\tloglikelihood:", -opt$value, "\toptim.converge?", opt$convergence, "\n", sep=" ")
+        cat("Run:", i, "\tlambda:", lambda, "\tbeta:", beta, "\tnopurchase[1]:", nopurchase[1], "\teps1.sd:", eps1.sd, "\teps1.mu:", eps1.mu, "\tloglikelihood:", -opt$value, "\toptim.converge?", opt$convergence, "\n", sep=" ")
         
     }
     
@@ -135,7 +136,7 @@ sample = function(data, parameters, nrun=100) {
 
 ## initial sampling input
 np.max <- 200 # upper limit used in integration
-param0 <- list(beta=c(-1, 1), lambda=30, eps1.sd=1)
+param0 <- list(beta=c(-1, 1), lambda=30, eps1.mu=epsilon1.mean, eps1.sd=1)
 
 z3M.m.EM <- sample(data=observation3M.m, parameters=param0, nrun=5000)
 
