@@ -1,5 +1,5 @@
 ####
-# Scenario 1. No-purchase is not observed 
+# Scenario 0. All choices are observed 
 #   --- by EM algorithm
 ####
 
@@ -11,13 +11,13 @@ source(file="Metropolis-Hastings.R")
 
 
 
-scenarioName <- "MNL.M1.L1_Scenario1.EM"
+scenarioName <- "MNL.M1.L1_Scenario0.EM"
 
 ## Load simulated choice data (NEED TO RUN MNL.M1.L1_InitData.R TO GENERATE THE DATA FIRST)
 load(file="MNL.M1.L1_InitData.RData")
 
-# final observation consists of the Demand
-observation1 <- list(demand=Demand)
+# final observation consists of Demand, and NoPurchase
+observation0 <- list(demand=Demand, nopurchase=NoPurchase)
 
 
 
@@ -37,30 +37,12 @@ negLogLikelihood.beta <- function(beta, data) {
 }
 
 
-prob.nopurchase.given.demand <- function(nopurchase, demand, lambda, beta, k) {
-    
-    if (any(nopurchase<0))
-        return(0)
-    else {
-        
-        beta.coef <- beta[1:L]
-        beta.const <- beta[(L+1):(L+M)]
-        
-        score <- rbind(exp(beta.const + X_Mat[k,] %*% beta.coef), 1)
-        choice.prob <- score/sum(score)
-        
-        return(dmultinom(x=c(demand, nopurchase), prob=choice.prob) * dpois(demand+nopurchase, lambda))
-        
-    }
-}
-
-
 sample = function(data, parameters, nrun=100) {
 
     demand <- data$demand
+    nopurchase <- data$nopurchase
     
     # initialize arrays to save samples
-    nopurchases <- array(0, dim=c(nrun, K))
     lambdas <- array(0, dim=c(nrun, 1))
     betas <- array(0, dim=c(nrun, L+M))
     
@@ -73,21 +55,7 @@ sample = function(data, parameters, nrun=100) {
     for(i in 1:nrun) {
 
         # Expectation Step for each nopurchase in period 1, ..., K
-        nopurchase <- rep(0,K)
-        
-        for (j in 1:K) {
-            
-            # conditional distribution of nopurchase^k
-            prob <- rep(0, np.max+1)
-            for (np in 0:np.max) {
-                prob[np+1] <- prob.nopurchase.given.demand(nopurchase=np, demand=demand[j], lambda=lambda, beta=beta, k=j) 
-            }
-            prob <- prob / sum(prob)
-            
-            # calculate expectation of nopurchase^k
-            #nopurchase[j] = round((0:np.max) %*% prob)
-            nopurchase[j] = (0:np.max) %*% prob
-        }
+        # nothing to E here ...     
         
         
         
@@ -103,16 +71,15 @@ sample = function(data, parameters, nrun=100) {
         
         
         # save the samples obtained in the current iteration
-        nopurchases[i,] <- nopurchase
         lambdas[i,] <- lambda
         betas[i,] <- beta
         
-        cat("Run:", i, "\tlambda:", lambda, "\tbeta:", beta, "\tnopurchase[1]:", nopurchase[1], "\tloglikelihood:", -opt$value, "\toptim.converge?", opt$convergence, "\n", sep=" ")
+        cat("Run:", i, "\tlambda:", lambda, "\tbeta:", beta, "\tloglikelihood:", -opt$value, "\toptim.converge?", opt$convergence, "\n", sep=" ")
         
     }
     
     # results
-    return(list(lambdas=lambdas, betas=betas, nopurchases=nopurchases))
+    return(list(lambdas=lambdas, betas=betas))
 
 } # end function 'sample'
 
@@ -120,12 +87,11 @@ sample = function(data, parameters, nrun=100) {
 
 
 ## initial sampling input
-np.max <- 200 # upper limit used in integration
 param0 <- list(beta=c(-1, 1), lambda=30)
 
-z1.EM <- sample(data=observation1, parameters=param0, nrun=5000)
+z0.EM <- sample(data=observation0, parameters=param0, nrun=5)
 
-save(z1.EM, observation1, file=paste0(scenarioName, ".RData"))
+save(z0.EM, observation0, file=paste0(scenarioName, ".RData"))
 
 
 
