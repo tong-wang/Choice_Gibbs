@@ -10,13 +10,13 @@ rm(list=ls(all.names=TRUE))
 
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L1")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L2")
 
 
 
 ### Known parameters
 M <- 1 # number of alternatives (not including the no-purchase option)
-L <- 1 # number of covariates (not including dummy for constant)
+L <- 2 # number of covariates (not including dummy for constant)
 K <- 90 # number of periods
 
 
@@ -24,7 +24,8 @@ K <- 90 # number of periods
 # In each period k, covariates X[i,j] is an M*L matrix, i=1...M, j=1...L. X[i,j] is coerced into a row vector
 # for each of the K periods, generate the X_Mat matrix with K rows of X, dimension = K * (M*L)
 X1 <- rnorm(K, mean=2, sd=0.5) # price covariate ~ N(2, 0.5)
-X_Mat <- cbind(X1)
+X2 <- sample(x=1:3, size=K, replace=TRUE) # quality covariate ~ DiscreteUniform
+X_Mat <- cbind(X1, X2)
 
 
 ### true values of the parameters to be estimated
@@ -32,8 +33,8 @@ X_Mat <- cbind(X1)
 lambda <- 50
 
 # beta is the MNL coefficient: utility of alternative m = beta.const[m] + beta.coef * X[m]
-beta.coef <- c(-2); # coefficient terms, L-dimensional
-beta.const <- c(4); # constant terms, M-dimensional
+beta.coef <- c(-2, 0.5); # coefficient terms, L-dimensional
+beta.const <- c(3); # constant terms, M-dimensional
 # in learning, we estimate a transformation of beta: betaT = beta[1] , beta[2]/beta[1], ..., beta[L]/beta[1]
 beta <- c(beta.coef, beta.const)
 betaT <- c(beta[1], beta[2:(L+M)] / beta[1])
@@ -85,5 +86,5 @@ TrafficM.xh <- exp(epsilon1.xh) * colSums(choice.mat)
 
 rm(k)
 
-save.image(file="MNL.M1.L1_InitData.RData")
+save.image(file="MNL.M1.L2_InitData.RData")
 
