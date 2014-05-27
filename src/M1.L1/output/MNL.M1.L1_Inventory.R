@@ -69,7 +69,7 @@ colMeans(data)
 
 # generate a new set of covaraites for prediction
 #X_new <- c(-2, -1, 0, 1, 2)
-X_new <- 2.5
+X_new <- 0.5
 
 
 ##generate lambda samples
@@ -121,6 +121,12 @@ ggplot(data=data2) +
     geom_density(aes(x=demand3c.m), color="blue", linetype="dashed")
 
 
+#optimal inventory
+quantile(data2$demand0, c(.1,.3,.5,.7,.9))
+quantile(data2$demand1, c(.1,.3,.5,.7,.9))
+quantile(data2$demand1c, c(.1,.3,.5,.7,.9))
+quantile(data2$demand3.m, c(.1,.3,.5,.7,.9))
+quantile(data2$demand3c.m, c(.1,.3,.5,.7,.9))
 
 
 
@@ -128,5 +134,5 @@ ggplot() +
     #geom_density(aes(x=data$lam0), color="black") +
     #geom_density(aes(x=data$lam1c), color="grey") #+
     geom_density(aes(x=rpois(50000, lambda=data$lam0)), color="black") +
-    geom_density(aes(x=rpois(50000, lambda=data$lam1)), color="grey") + 
+    geom_density(aes(x=rpois(50000, lambda=data$lam1c)), color="grey") + 
     geom_density(aes(x=rpois(50000, lambda=50)), color="red")
