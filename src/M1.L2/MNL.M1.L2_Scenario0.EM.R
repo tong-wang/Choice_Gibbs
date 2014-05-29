@@ -7,9 +7,6 @@ Sys.setenv(LANG = "en")
 setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L2")
 
 
-source(file="Metropolis-Hastings.R")
-
-
 
 scenarioName <- "MNL.M1.L2_Scenario0.EM"
 

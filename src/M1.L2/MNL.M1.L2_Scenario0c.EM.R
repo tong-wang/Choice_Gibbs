@@ -5,14 +5,14 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L1")
+setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L2")
 
 
 
-scenarioName <- "MNL.M1.L1_Scenario0c.EM"
+scenarioName <- "MNL.M1.L2_Scenario0c.EM"
 
-## Load simulated choice data (NEED TO RUN MNL.M1.L1_InitData.R TO GENERATE THE DATA FIRST)
-load(file="MNL.M1.L1_InitData.RData")
+## Load simulated choice data (NEED TO RUN MNL.M1.L2_InitData.R TO GENERATE THE DATA FIRST)
+load(file="MNL.M1.L2_InitData.RData")
 
 # final observation consists of Sales, Stockout status, and Rest
 observation0c <- list(sales=Sales, stockout=Stockout, rest=NoPurchase+LostSales)
@@ -99,7 +99,7 @@ sample = function(data, parameters, nrun=100) {
         
         # MLE of beta (this need to be searched over the likelihood function)
         demand <- sales + rest - nopurchase
-        opt <- optim(par=c(-1,1), fn=negLogLikelihood.beta, data=rbind(demand, nopurchase), method="BFGS")
+        opt <- optim(par=c(-1,1,1), fn=negLogLikelihood.beta, data=rbind(demand, nopurchase), method="BFGS")
         beta <- opt$par
         
         
@@ -123,7 +123,7 @@ sample = function(data, parameters, nrun=100) {
 
 ## initial sampling input
 np.max <- 100 # upper limit used in integration
-param0 <- list(beta=c(-1, 1), lambda=30)
+param0 <- list(beta=c(-1, 1, 1), lambda=30)
 
 z0c.EM <- sample(data=observation0c, parameters=param0, nrun=100)
 
