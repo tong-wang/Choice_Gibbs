@@ -1,3 +1,7 @@
+####
+# Inventory optimization
+####
+
 require("plyr")
 require("ggplot2")
 
@@ -31,8 +35,8 @@ sample.index <- ((1:nrun) >= start) & ((1:nrun) %% thin == 0)
 
 
 
-##merge estimation into a big dataframe
-data <- data.frame(
+# merge estimation into a big dataframe
+posteriors <- data.frame(
     lam0=z0$lambdas[sample.index],
     lam1=z1$lambdas[sample.index,], 
     lam3.xl=z3M.xl$lambdas[sample.index,], 
@@ -62,144 +66,174 @@ data <- data.frame(
     beta3c.h=z3Mc.h$betas[sample.index,],
     beta3c.xh=z3Mc.xh$betas[sample.index,]
 )
-data$id <- 1:nrow(data)
-colMeans(data)
+posteriors$id <- 1:nrow(posteriors)
+colMeans(posteriors)
 
 
 
-# generate a new set of covaraites for prediction
-#X_new <- c(-2, -1, 0, 1, 2)
-X_new <- 1
-Cost_new <- 0.7
+# generate effective lambda (lambda * choice.prob) with given covariates
+Cost <- 1.2
+Price <- 1.5 * Cost
 
-##generate lambda samples
-sample.lambda <- function (row) {
+# generate effective lambda samples
+calc.elambda <- function (row, scenario) {
     
-    row$lambda0 <- row$lam0 * (exp(X_new * row$beta0.1 + row$beta0.2) / (1 + exp(X_new * row$beta0.1 + row$beta0.2)))
-    row$lambda0c <- row$lam0c * (exp(X_new * row$beta0c.1 + row$beta0c.2) / (1 + exp(X_new * row$beta0c.1 + row$beta0c.2)))
-    row$lambda1 <- row$lam1 * (exp(X_new * row$beta1.1 + row$beta1.2) / (1 + exp(X_new * row$beta1.1 + row$beta1.2)))
-    row$lambda1c <- row$lam1c * (exp(X_new * row$beta1c.1 + row$beta1c.2) / (1 + exp(X_new * row$beta1c.1 + row$beta1c.2)))
-    row$lambda3.m <- row$lam3.m * (exp(X_new * row$beta3.m.1 + row$beta3.m.2) / (1 + exp(X_new * row$beta3.m.1 + row$beta3.m.2)))
-    row$lambda3c.m <- row$lam3c.m * (exp(X_new * row$beta3c.m.1 + row$beta3c.m.2) / (1 + exp(X_new * row$beta3c.m.1 + row$beta3c.m.2)))
+    out <- data.frame(id=row$id)
+    out$elambda <- row[, paste0("lam", scenario)]  / (1 + exp(- Price * row[, paste0("beta",scenario, ".1")] - row[, paste0("beta",scenario, ".2")]))
     
-    return(row)
+    return(out)
 }
 
-data <- ddply(data, .(id), sample.lambda)
-summary(data)
+elambda0 <- ddply(posteriors, .(id), calc.elambda, scenario="0")
+elambda1 <- ddply(posteriors, .(id), calc.elambda, scenario="1")
+elambda3.m <- ddply(posteriors, .(id), calc.elambda, scenario="3.m")
+elambda0c <- ddply(posteriors, .(id), calc.elambda, scenario="0c")
+elambda1c <- ddply(posteriors, .(id), calc.elambda, scenario="1c")
+elambda3c.m <- ddply(posteriors, .(id), calc.elambda, scenario="3c.m")
+head(elambda1)
 
-#plot lambda distribution
-ggplot(data=data) + 
-    geom_density(aes(x=lambda0), color="black") + 
-    geom_density(aes(x=lambda1), color="grey") +
-    geom_density(aes(x=lambda3.m), color="blue") +
-    geom_density(aes(x=lambda0c), color="black", linetype="dashed") + 
-    geom_density(aes(x=lambda1c), color="grey", linetype="dashed") +
-    geom_density(aes(x=lambda3c.m), color="blue", linetype="dashed")
+# plot effective lambda distribution
+ggplot() + 
+    geom_density(aes(x=elambda0$elambda), color="black") + 
+    geom_density(aes(x=elambda1$elambda), color="grey") +
+    geom_density(aes(x=elambda3.m$elambda), color="blue") +
+    geom_density(aes(x=elambda0c$elambda), color="black", linetype="dashed") + 
+    geom_density(aes(x=elambda1c$elambda), color="grey", linetype="dashed") +
+    geom_density(aes(x=elambda3c.m$elambda), color="blue", linetype="dashed")
 
 
 
 
-### overall mean and sd of profits under different inventory
-##generate demand samples
+### mean and sd of profits under different inventory
+
+## generate demand samples
 num <- 100
-data2 <- data.frame(
-    demand0 = rpois(n=num*nrow(data), lambda=data$lambda0),
-    demand0c = rpois(n=num*nrow(data), lambda=data$lambda0c),
-    demand1 = rpois(n=num*nrow(data), lambda=data$lambda1),
-    demand1c = rpois(n=num*nrow(data), lambda=data$lambda1c),
-    demand3.m = rpois(n=num*nrow(data), lambda=data$lambda3.m),
-    demand3c.m = rpois(n=num*nrow(data), lambda=data$lambda3c.m)
-)
-summary(data2)
+
+generate.demand <- function(row) {
+    
+    out <- data.frame(
+        id = rep(row$id, num),
+        #elambda = rep(row$elambda, num),
+        demand = rpois(num, row$elambda)
+    )
+    
+    return(out)
+}
+
+demand0 <- ddply(elambda0, .(id), generate.demand)
+demand1 <- ddply(elambda1, .(id), generate.demand)
+demand3.m <- ddply(elambda3.m, .(id), generate.demand)
+demand0c <- ddply(elambda0c, .(id), generate.demand)
+demand1c <- ddply(elambda1c, .(id), generate.demand)
+demand3c.m <- ddply(elambda3c.m, .(id), generate.demand)
+head(demand0)
 
 #plot demand distribution
-ggplot(data=data2) + 
-    geom_density(aes(x=demand0), color="black",) + 
-    geom_density(aes(x=demand1), color="grey") +
-    geom_density(aes(x=demand3.m), color="blue") +
-    geom_density(aes(x=demand0c), color="black", linetype="dashed") + 
-    geom_density(aes(x=demand1c), color="grey", linetype="dashed") +
-    geom_density(aes(x=demand3c.m), color="blue", linetype="dashed")
+ggplot() + 
+    geom_density(aes(x=demand0$demand), color="black",) + 
+    geom_density(aes(x=demand1$demand), color="grey") +
+    geom_density(aes(x=demand3.m$demand), color="blue") +
+    geom_density(aes(x=demand0c$demand), color="black", linetype="dashed") + 
+    geom_density(aes(x=demand1c$demand), color="grey", linetype="dashed") +
+    geom_density(aes(x=demand3c.m$demand), color="blue", linetype="dashed")
 
 
-#optimal inventory
-quantile(data2$demand0, c(.1,.3,.5,.7,.9))
-quantile(data2$demand1, c(.1,.3,.5,.7,.9))
-quantile(data2$demand1c, c(.1,.3,.5,.7,.9))
-quantile(data2$demand3.m, c(.1,.3,.5,.7,.9))
-quantile(data2$demand3c.m, c(.1,.3,.5,.7,.9))
+#optimal inventory, aka quantiles
+quantile(demand0$demand, c(.1,.3,.5,.7,.9))
+quantile(demand1$demand, c(.1,.3,.5,.7,.9))
+quantile(demand3.m$demand, c(.1,.3,.5,.7,.9))
+quantile(demand0c$demand, c(.1,.3,.5,.7,.9))
+quantile(demand1c$demand, c(.1,.3,.5,.7,.9))
+quantile(demand3c.m$demand, c(.1,.3,.5,.7,.9))
 
 
-#profit
-profit0 <- NULL
-profit1 <- NULL
-profit1c <- NULL
-profit3.m <- NULL
+#inventory candidates
+inv.range <- 21:50
 
-for (inv in 21:50) {
-    profit0 <- cbind(profit0, X_new * pmin(data2$demand0, inv) - Cost_new * inv)
-    profit1 <- cbind(profit1, X_new * pmin(data2$demand1, inv) - Cost_new * inv)
-    profit1c <- cbind(profit1c, X_new * pmin(data2$demand1c, inv) - Cost_new * inv)
-    profit3.m <- cbind(profit3.m, X_new * pmin(data2$demand3.m, inv) - Cost_new * inv)
+#calculate realized profit
+profit0 <- demand0
+profit1 <- demand1
+profit3.m <- demand3.m
+profit0c <- demand0c
+profit1c <- demand1c
+profit3c.m <- demand3c.m
+
+for (inv in inv.range) {
+    profit0[, paste0("profit.",inv)] <-  Price * pmin(profit0$demand, inv) - Cost * inv
+    profit1[, paste0("profit.",inv)] <-  Price * pmin(profit1$demand, inv) - Cost * inv
+    profit3.m[, paste0("profit.",inv)] <-  Price * pmin(profit3.m$demand, inv) - Cost * inv
+    profit0c[, paste0("profit.",inv)] <-  Price * pmin(profit0c$demand, inv) - Cost * inv
+    profit1c[, paste0("profit.",inv)] <-  Price * pmin(profit1c$demand, inv) - Cost * inv
+    profit3c.m[, paste0("profit.",inv)] <-  Price * pmin(profit3c.m$demand, inv) - Cost * inv
 }
 
-#mean-variance
+
+head(profit0)
+
+
+
+# conditional mean and variance (conditioning on elambda)
+cmean0 <- ddply(profit0, .(id), colMeans)
+cmean1 <- ddply(profit1, .(id), colMeans)
+cmean3.m <- ddply(profit3.m, .(id), colMeans)
+cmean0c <- ddply(profit0c, .(id), colMeans)
+cmean1c <- ddply(profit1c, .(id), colMeans)
+cmean3c.m <- ddply(profit3c.m, .(id), colMeans)
+
+cvar0 <- ddply(profit0, .(id), function(x) {apply(x, 2, var)})
+cvar1 <- ddply(profit1, .(id), function(x) {apply(x, 2, var)})
+cvar3.m <- ddply(profit3.m, .(id), function(x) {apply(x, 2, var)})
+cvar0c <- ddply(profit0c, .(id), function(x) {apply(x, 2, var)})
+cvar1c <- ddply(profit1c, .(id), function(x) {apply(x, 2, var)})
+cvar3c.m <- ddply(profit3c.m, .(id), function(x) {apply(x, 2, var)})
+
+#plot cmean distribution
+ggplot() + 
+    geom_density(aes(x=cmean0$profit.27), color="black",) + 
+    geom_density(aes(x=cmean1$profit.27), color="grey") +
+    geom_density(aes(x=cmean3.m$profit.27), color="blue") 
+#plot cvar distribution
+ggplot() + 
+    geom_density(aes(x=cvar0$profit.27), color="black",) + 
+    geom_density(aes(x=cvar1$profit.27), color="grey") +
+    geom_density(aes(x=cvar3.m$profit.27), color="blue") 
+
+
+
+
+# total mean and var
 mean0 <- colMeans(profit0)
 mean1 <- colMeans(profit1)
-mean1c <- colMeans(profit1c)
 mean3.m <- colMeans(profit3.m)
-sd0 <- apply(profit0, 2, sd)
-sd1 <- apply(profit1, 2, sd)
-sd1c <- apply(profit1c, 2, sd)
-sd3.m <- apply(profit3.m, 2, sd)
+mean0c <- colMeans(profit0c)
+mean1c <- colMeans(profit1c)
+mean3c.m <- colMeans(profit3c.m)
 
-#plot efficient frontier
-plot(mean0, sd0, type="l")
-lines(mean1, sd1, type="l", col="grey")
-lines(mean1c, sd1c, type="l", col="darkgrey")
-lines(mean3.m, sd3.m, type="l", col="red")
+
+var0 <- apply(profit0, 2, var)
+var1 <- apply(profit1, 2, var)
+var3.m <- apply(profit3.m, 2, var)
+var0c <- apply(profit0c, 2, var)
+var1c <- apply(profit1c, 2, var)
+var3c.m <- apply(profit3c.m, 2, var)
+
+
+
+#plot efficient frontier of total mean-variance
+plot(mean0[3:16], var0[3:16], type="l")
+lines(mean1[3:16], var1[3:16], type="l", col="grey")
+lines(mean3.m[3:16], var3.m[3:16], type="l", col="red")
+
+plot(mean0c[3:16], var0c[3:16], type="l")
+lines(mean1c[3:16], var1c[3:16], type="l", col="darkgrey")
+lines(mean3c.m[3:16], var3c.m[3:16], type="l", col="blue")
+
 
 #expectation-maximization inv
-20 + which.max(mean0)
-20 + which.max(mean1)
-20 + which.max(mean1c)
-20 + which.max(mean3.m)
+inv.range[1] - 1 + which.max(mean0[-(1:2)])
+inv.range[1] - 1 +  which.max(mean1[-(1:2)])
+inv.range[1] - 1 +  which.max(mean3.m[-(1:2)])
+inv.range[1] - 1 + which.max(mean0c[-(1:2)])
+inv.range[1] - 1 +  which.max(mean1c[-(1:2)])
+inv.range[1] - 1 +  which.max(mean3c.m[-(1:2)])
 
-
-
-
-### profit 
-N.exp <- 1000
-
-profit.given.lambda <- function(row) {
-    d0 <- rpois(N.exp, row$lambda0)
-    profit0 <- X_new * pmin(d0, 47) - Cost_new * 47
-    row$mean0 <- mean(profit0)
-    row$sd0 <- sd(profit0)
-    
-    d1 <- rpois(N.exp, row$lambda1)
-    profit1 <- X_new * pmin(d1, 45) - Cost_new * 45
-    row$mean1 <- mean(profit1)
-    row$sd1 <- sd(profit1)
-    
-    
-    return(row)
-}
-
-
-data3 <- data[,c("lambda0", "lambda0c", "lambda1", "lambda1c", "lambda3.m", "lambda3c.m")]
-
-data3 <- ddply(data3, .(lambda0), profit.given.lambda)
-
-
-plot(data3$mean0, data3$sd0)
-plot(data3$mean1, data3$sd1)
-
-ggplot(data=data3) + 
-    geom_density(aes(x=mean0), color="black",) + 
-    geom_density(aes(x=mean1), color="grey") #+
-    geom_density(aes(x=demand3.m), color="blue") +
-    geom_density(aes(x=demand0c), color="black", linetype="dashed") + 
-    geom_density(aes(x=demand1c), color="grey", linetype="dashed") +
-    geom_density(aes(x=demand3c.m), color="blue", linetype="dashed")
