@@ -85,8 +85,8 @@ sample = function(data, parameters, nrun=100) {
             prob <- prob / sum(prob)
             
             # calculate expectation of nopurchase^k
-            #nopurchase[j] = round((0:np.max) %*% prob)
-            nopurchase[j] = (0:np.max) %*% prob
+            #nopurchase[j] <- round((0:np.max) %*% prob)
+            nopurchase[j] <- (0:np.max) %*% prob
         }
         
         
@@ -120,10 +120,10 @@ sample = function(data, parameters, nrun=100) {
 
 
 ## initial sampling input
-np.max <- 200 # upper limit used in integration
+np.max <- 100 # upper limit used in integration
 param0 <- list(beta=c(-1, 1), lambda=30)
 
-z1.EM <- sample(data=observation1, parameters=param0, nrun=5000)
+z1.EM <- sample(data=observation1, parameters=param0, nrun=1000)
 
 save(z1.EM, observation1, file=paste0(scenarioName, ".RData"))
 

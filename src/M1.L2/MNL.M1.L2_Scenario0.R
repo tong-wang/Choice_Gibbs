@@ -53,7 +53,7 @@ start <- burnin*nrun+1
 
 
 ### direct sampling beta
-MH <- MH.mvnorm(logpost.betaT, start=c(-1, -1, -1), scale=c(0.2, 0.01, 0.01), nrun=nrun*10, thin=10, data=rbind(observation0$demand, observation0$nopurchase))
+MH <- MH.mvnorm(logpost.betaT, start=c(-1, -1, -1), scale=c(0.1, 0.01, 0.02), nrun=nrun*10, thin=10, data=rbind(observation0$demand, observation0$nopurchase))
 cat("MH acceptance rate: ", MH$accept, "\n")
 betaTs <- MH$MC
 betas <- cbind(betaTs[,1], betaTs[,2:(L+M)]*betaTs[,1])

@@ -71,9 +71,9 @@ NoPurchase <- choice.mat[M+1,]
 epsilon1.mean <- 3
 epsilon1.xl <- rnorm(K, mean=epsilon1.mean, sd=1)
 epsilon1.l <- rnorm(K, mean=epsilon1.mean, sd=0.5)
-epsilon1.m <- rnorm(K, mean=epsilon1.mean, sd=0.1)
-epsilon1.h <- rnorm(K, mean=epsilon1.mean, sd=0.05)
-epsilon1.xh <- rnorm(K, mean=epsilon1.mean, sd=0.01)
+epsilon1.m <- rnorm(K, mean=epsilon1.mean, sd=0.3)
+epsilon1.h <- rnorm(K, mean=epsilon1.mean, sd=0.1)
+epsilon1.xh <- rnorm(K, mean=epsilon1.mean, sd=0.05)
 
 TrafficM.xl <- exp(epsilon1.xl) * colSums(choice.mat) 
 TrafficM.l <- exp(epsilon1.l) * colSums(choice.mat) 

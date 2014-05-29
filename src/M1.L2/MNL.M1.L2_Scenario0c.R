@@ -95,7 +95,7 @@ sample = function(data, parameters, nrun=1000) {
         
         #simulate beta2 by Metropolis-Hastings
         betaT1 <- c(beta1[1], beta1[2:(L+M)]/beta1[1])
-        MH <- MH.mvnorm(logpost.betaT, start=betaT1, scale=c(0.2, 0.02, 0.02), nrun=10, data=rbind(demand, nopurchase1))
+        MH <- MH.mvnorm(logpost.betaT, start=betaT1, scale=c(0.1, 0.01, 0.02), nrun=10, data=rbind(demand, nopurchase1))
         betaT2 <- MH$MC[10,]
         beta2 <- c(betaT2[1], betaT2[2:(L+M)]*betaT2[1])
         cat("MH acceptance rate: ", MH$accept, "\n")

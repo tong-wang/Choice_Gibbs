@@ -123,7 +123,7 @@ sample = function(data, parameters, nrun=100) {
 np.max <- 200 # upper limit used in integration
 param0 <- list(beta=c(-1, 1, 1), lambda=30)
 
-z1.EM <- sample(data=observation1, parameters=param0, nrun=5000)
+z1.EM <- sample(data=observation1, parameters=param0, nrun=1000)
 
 save(z1.EM, observation1, file=paste0(scenarioName, ".RData"))
 

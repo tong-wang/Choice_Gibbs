@@ -138,7 +138,7 @@ sample = function(data, parameters, nrun=100) {
 np.max <- 200 # upper limit used in integration
 param0 <- list(beta=c(-1, 1, 1), lambda=30, eps1.mu=epsilon1.mean, eps1.sd=1)
 
-z3M.m.EM <- sample(data=observation3M.m, parameters=param0, nrun=5000)
+z3M.m.EM <- sample(data=observation3M.m, parameters=param0, nrun=200)
 
 save(z3M.m.EM, observation3M.m, file=paste0(scenarioName, ".RData"))
 

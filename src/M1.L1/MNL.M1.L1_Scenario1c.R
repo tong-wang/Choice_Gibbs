@@ -115,7 +115,7 @@ sample = function(data, parameters, nrun=1000) {
         
         #simulate beta2 by Metropolis-Hastings
         betaT1 <- c(beta1[1], beta1[2:(L+M)]/beta1[1])
-        MH <- MH.mvnorm(logpost.betaT, start=betaT1, scale=c(0.3, 0.05), nrun=10, data=rbind(demand1, nopurchase1))
+        MH <- MH.mvnorm(logpost.betaT, start=betaT1, scale=c(0.2, 0.02), nrun=10, data=rbind(demand1, nopurchase1))
         betaT2 <- MH$MC[10,]
         beta2 <- c(betaT2[1], betaT2[2:(L+M)]*betaT2[1])
         cat("MH acceptance rate: ", MH$accept, "\n")
@@ -130,7 +130,7 @@ sample = function(data, parameters, nrun=1000) {
         for (j in 1:K) {
             if (!stockout[j]) {
                 
-                dMH <- discreteMH.mvnorm(logpost.nopurchase, start=nopurchase1[j], scale=12, nrun=10, 
+                dMH <- discreteMH.mvnorm(logpost.nopurchase, start=nopurchase1[j], scale=10, nrun=10, 
                                          demand=demand1[j], lambda=lambda2, beta=beta2, k=j)
                 nopurchase2[j] <- dMH$MC[10]
                 dMH.accept[j] <- dMH$accept
