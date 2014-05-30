@@ -1,5 +1,5 @@
 ####
-# Inventory optimization
+# Price optimization
 ####
 
 require("plyr")
@@ -94,11 +94,10 @@ ggplot(data=posteriors) + geom_density(aes(x=beta0c.2), color="black") +
 
 
 
-#inventory candidates
-Cost <- 1.5
-Price <- 1.5 * Cost
-inv.range <- 1:50
-inv.index <- 1:length(inv.range)
+#price candidates
+Cost <- 1
+price.range <- seq(1, 3, 0.025) * Cost
+price.index <- 1:length(price.range)
 
 
 
@@ -107,12 +106,9 @@ num <- 100
 
 generate.profit <- function(row, scenario, n) {
     
-    elambda <- row[, paste0("lam", scenario)]  / (1 + exp(- Price * row[, paste0("beta",scenario, ".1")] - row[, paste0("beta",scenario, ".2")]))
-    demand <- rpois(n, elambda)
-    
     out <- data.frame(id=rep(row$id, n))
-    for (i in inv.index) {
-        out[, paste0("profit.",i)] <- Price * pmin(demand, inv.range[i]) - Cost * inv.range[i]
+    for (i in price.index) {
+        out[, paste0("profit.",i)] <- (price.range[i] - Cost) * rpois(n, row[, paste0("lam", scenario)]  / (1 + exp(- price.range[i] * row[, paste0("beta",scenario, ".1")] - row[, paste0("beta",scenario, ".2")])))
     }
     
     return(out)
@@ -128,14 +124,14 @@ profit3c.m <- ddply(posteriors, .(id), generate.profit, scenario="3c.m", n=num)
 head(profit0)
 
 
-#plot profit distribution for a given inventory level
+#plot profit distribution for a given price level
 ggplot() + 
-    geom_density(aes(x=profit0$profit.35), color="black",) + 
-    geom_density(aes(x=profit1$profit.35), color="grey") +
-    geom_density(aes(x=profit3.m$profit.35), color="blue") +
-    geom_density(aes(x=profit0c$profit.35), color="black", linetype="dashed") + 
-    geom_density(aes(x=profit1c$profit.35), color="grey", linetype="dashed") +
-    geom_density(aes(x=profit3c.m$profit.35), color="blue", linetype="dashed")
+    geom_density(aes(x=profit0$profit.10), color="black",) + 
+    geom_density(aes(x=profit1$profit.10), color="grey") +
+    geom_density(aes(x=profit3.m$profit.10), color="blue") +
+    geom_density(aes(x=profit0c$profit.10), color="black", linetype="dashed") + 
+    geom_density(aes(x=profit1c$profit.10), color="grey", linetype="dashed") +
+    geom_density(aes(x=profit3c.m$profit.10), color="blue", linetype="dashed")
 
 
 
@@ -153,21 +149,13 @@ lambda3c.m.EM <- tail(z3Mc.m.EM$lambdas, n=1)
 beta3c.m.EM <- tail(z3Mc.m.EM$betas, n=1)
 
 
-elambda0.EM <- lambda0.EM  / (1 + exp(- Price * beta0.EM[1] - beta0.EM[2]))
-elambda3c.m.EM <- lambda3c.m.EM  / (1 + exp(- Price * beta3c.m.EM[1] - beta3c.m.EM[2]))
-
-
 num.EM <- 100000
-
-demand0.EM <- rpois(num.EM, elambda0.EM)
-demand3c.m.EM <- rpois(num.EM, elambda3c.m.EM)
 
 profit0.EM <- data.frame(id=rep(1, num.EM))
 profit3c.m.EM <- data.frame(id=rep(1, num.EM))
-
-for (i in inv.index) {
-    profit0.EM[, paste0("profit.",i)] <- Price * pmin(demand0.EM, inv.range[i]) - Cost * inv.range[i]
-    profit3c.m.EM[, paste0("profit.",i)] <- Price * pmin(demand3c.m.EM, inv.range[i]) - Cost * inv.range[i]
+for (i in price.index) {
+    profit0.EM[, paste0("profit.",i)] <- (price.range[i] - Cost) * rpois(num.EM, lambda0.EM  / (1 + exp(- price.range[i] * beta0.EM[1] - beta0.EM[2])))
+    profit3c.m.EM[, paste0("profit.",i)] <- (price.range[i] - Cost) * rpois(num.EM, lambda3c.m.EM  / (1 + exp(- price.range[i] * beta3c.m.EM[1] - beta3c.m.EM[2])))
 }
 
 ################################################
@@ -203,18 +191,18 @@ var.cmean3c.m <- apply(cmean3c.m, 2, var)
 
 #plot cmean distribution
 ggplot() + 
-    geom_density(aes(x=cmean0$profit.35), color="black",) + 
-    geom_density(aes(x=cmean1$profit.35), color="grey") +
-    geom_density(aes(x=cmean3.m$profit.35), color="blue") 
+    geom_density(aes(x=cmean0$profit.10), color="black",) + 
+    geom_density(aes(x=cmean1$profit.10), color="grey") +
+    geom_density(aes(x=cmean3.m$profit.10), color="blue") 
 ggplot() + 
-    geom_density(aes(x=cmean0c$profit.35), color="black",) + 
-    geom_density(aes(x=cmean1c$profit.35), color="grey") +
-    geom_density(aes(x=cmean3c.m$profit.35), color="blue") 
+    geom_density(aes(x=cmean0c$profit.10), color="black",) + 
+    geom_density(aes(x=cmean1c$profit.10), color="grey") +
+    geom_density(aes(x=cmean3c.m$profit.10), color="blue") 
 #plot cvar distribution
 ggplot() + 
-    geom_density(aes(x=cvar0$profit.35), color="black",) + 
-    geom_density(aes(x=cvar1$profit.35), color="grey") +
-    geom_density(aes(x=cvar3.m$profit.35), color="blue") 
+    geom_density(aes(x=cvar0$profit.10), color="black",) + 
+    geom_density(aes(x=cvar1$profit.10), color="grey") +
+    geom_density(aes(x=cvar3.m$profit.10), color="blue") 
 
 
 
@@ -249,25 +237,17 @@ ggplot() +
     geom_path(aes(x=mean3c.m, y=var3c.m), color="blue") +
     #geom_path(aes(x=mean0.EM, y=var0.EM), color="green") 
     geom_path(aes(x=mean3c.m.EM, y=var3c.m.EM), color="green") 
+    
 
 
-inv.plot.range <- 1:10
-ggplot() +
-    geom_path(aes(x=mean0[inv.plot.range], y=var0[inv.plot.range])) + 
-    geom_path(aes(x=mean1c[inv.plot.range], y=var1c[inv.plot.range]), color="darkgrey") + 
-    geom_path(aes(x=mean3c.m[inv.plot.range], y=var3c.m[inv.plot.range]), color="blue") + 
-    geom_path(aes(x=mean3c.m.EM[inv.plot.range], y=var3c.m.EM[inv.plot.range]), color="green")
-
-
-
-#optimal inv (risk neutral)
-inv.range[which.max(mean0)]
-inv.range[which.max(mean1)]
-inv.range[which.max(mean3.m)]
-inv.range[which.max(mean0c)]
-inv.range[which.max(mean1c)]
-inv.range[which.max(mean3c.m)]
-inv.range[which.max(mean3c.m.EM)]
+#optimal price (risk neutral)
+price.range[which.max(mean0)]
+price.range[which.max(mean1)]
+price.range[which.max(mean3.m)]
+price.range[which.max(mean0c)]
+price.range[which.max(mean1c)]
+price.range[which.max(mean3c.m)]
+price.range[which.max(mean3c.m.EM)]
 
 #optimal expected profit
 max(mean0)
@@ -280,7 +260,7 @@ max(mean3c.m.EM)
 
 
 
-#optimal inv (risk averse: mean >= b*var)
+#optimal price (risk averse: mean >= b*var)
 b <- 1
 inv.range[which.max(mean0[mean0>=b*var0])]
 inv.range[which.max(mean1c[mean1c>=b*var1c])]
