@@ -25,6 +25,7 @@ load("MNL.M1.L1_Scenario3Mc.h.RData")
 load("MNL.M1.L1_Scenario3Mc.xh.RData")
 
 
+
 nrun <- 50000
 burnin <- 0.5
 start <- burnin*nrun+1
@@ -69,10 +70,31 @@ posteriors <- data.frame(
 posteriors$id <- 1:nrow(posteriors)
 colMeans(posteriors)
 
+#plot the posteriors
+ggplot(data=posteriors) + geom_density(aes(x=lam0), color="black") + 
+    geom_density(aes(x=lam1), color="grey") +
+    geom_density(aes(x=lam3.m), color="blue") 
+ggplot(data=posteriors) + geom_density(aes(x=beta0.1), color="black") + 
+    geom_density(aes(x=beta1.1), color="grey") +
+    geom_density(aes(x=beta3.m.1), color="blue")
+ggplot(data=posteriors) + geom_density(aes(x=beta0.2), color="black") + 
+    geom_density(aes(x=beta1.2), color="grey") +
+    geom_density(aes(x=beta3.m.2), color="blue")
+
+ggplot(data=posteriors) + geom_density(aes(x=lam0c), color="black") + 
+    geom_density(aes(x=lam1c), color="grey") +
+    geom_density(aes(x=lam3c.m), color="blue") 
+ggplot(data=posteriors) + geom_density(aes(x=beta0c.1), color="black") + 
+    geom_density(aes(x=beta1c.1), color="grey") +
+    geom_density(aes(x=beta3c.m.1), color="blue")
+ggplot(data=posteriors) + geom_density(aes(x=beta0c.2), color="black") + 
+    geom_density(aes(x=beta1c.2), color="grey") +
+    geom_density(aes(x=beta3c.m.2), color="blue")
+
 
 
 # generate effective lambda (lambda * choice.prob) with given covariates
-Cost <- 1.2
+Cost <- 2
 Price <- 1.5 * Cost
 
 # generate effective lambda samples
@@ -148,7 +170,7 @@ quantile(demand3c.m$demand, c(.1,.3,.5,.7,.9))
 
 
 #inventory candidates
-inv.range <- 21:50
+inv.range <- 0:50
 
 #calculate realized profit
 profit0 <- demand0
@@ -171,6 +193,45 @@ for (inv in inv.range) {
 head(profit0)
 
 
+####### add estimates from EM methods ##########
+
+load("MNL.M1.L1_Scenario0.EM.RData")
+#load("MNL.M1.L1_Scenario1c.EM.RData")
+load("MNL.M1.L1_Scenario3Mc.m.EM.RData")
+
+lambda0.EM <- tail(z0.EM$lambdas, n=1)
+beta0.EM <- tail(z0.EM$betas, n=1)
+
+lambda3c.m.EM <- tail(z3Mc.m.EM$lambdas, n=1)
+beta3c.m.EM <- tail(z3Mc.m.EM$betas, n=1)
+
+
+elambda0.EM <- lambda0.EM  / (1 + exp(- Price * beta0.EM[1] - beta0.EM[2]))
+elambda3c.m.EM <- lambda3c.m.EM  / (1 + exp(- Price * beta3c.m.EM[1] - beta3c.m.EM[2]))
+
+
+profit0.EM <- data.frame(demand = rpois(10000, elambda0.EM))
+profit3c.m.EM <- data.frame(demand = rpois(10000, elambda3c.m.EM))
+
+
+
+for (inv in inv.range) {
+    profit0.EM[, paste0("profit.",inv)] <-  Price * pmin(profit0.EM$demand, inv) - Cost * inv
+    #profit1c.EM[, paste0("profit.",inv)] <-  Price * pmin(profit1c.EM$demand, inv) - Cost * inv
+    profit3c.m.EM[, paste0("profit.",inv)] <-  Price * pmin(profit3c.m.EM$demand, inv) - Cost * inv
+}
+
+
+mean0.EM <- colMeans(profit0.EM)
+mean3c.m.EM <- colMeans(profit3c.m.EM)
+
+
+var0.EM <- apply(profit0.EM, 2, var)
+var3c.m.EM <- apply(profit3c.m.EM, 2, var)
+
+################################################
+
+
 
 # conditional mean and variance (conditioning on elambda)
 cmean0 <- ddply(profit0, .(id), colMeans)
@@ -187,21 +248,34 @@ cvar0c <- ddply(profit0c, .(id), function(x) {apply(x, 2, var)})
 cvar1c <- ddply(profit1c, .(id), function(x) {apply(x, 2, var)})
 cvar3c.m <- ddply(profit3c.m, .(id), function(x) {apply(x, 2, var)})
 
+
+var.cmean0 <- apply(cmean0, 2, var)
+var.cmean1 <- apply(cmean1, 2, var)
+var.cmean3.m <- apply(cmean3.m, 2, var)
+var.cmean0c <- apply(cmean0c, 2, var)
+var.cmean1c <- apply(cmean1c, 2, var)
+var.cmean3c.m <- apply(cmean3c.m, 2, var)
+
+
 #plot cmean distribution
 ggplot() + 
-    geom_density(aes(x=cmean0$profit.27), color="black",) + 
-    geom_density(aes(x=cmean1$profit.27), color="grey") +
-    geom_density(aes(x=cmean3.m$profit.27), color="blue") 
+    geom_density(aes(x=cmean0$profit.35), color="black",) + 
+    geom_density(aes(x=cmean1$profit.35), color="grey") +
+    geom_density(aes(x=cmean3.m$profit.35), color="blue") 
+ggplot() + 
+    geom_density(aes(x=cmean0c$profit.35), color="black",) + 
+    geom_density(aes(x=cmean1c$profit.35), color="grey") +
+    geom_density(aes(x=cmean3c.m$profit.35), color="blue") 
 #plot cvar distribution
 ggplot() + 
-    geom_density(aes(x=cvar0$profit.27), color="black",) + 
-    geom_density(aes(x=cvar1$profit.27), color="grey") +
-    geom_density(aes(x=cvar3.m$profit.27), color="blue") 
+    geom_density(aes(x=cvar0$profit.35), color="black",) + 
+    geom_density(aes(x=cvar1$profit.35), color="grey") +
+    geom_density(aes(x=cvar3.m$profit.35), color="blue") 
 
 
 
 
-# total mean and var
+# total mean, var, quantile
 mean0 <- colMeans(profit0)
 mean1 <- colMeans(profit1)
 mean3.m <- colMeans(profit3.m)
@@ -218,22 +292,36 @@ var1c <- apply(profit1c, 2, var)
 var3c.m <- apply(profit3c.m, 2, var)
 
 
+quantile0 <- apply(profit0, 2, quantile, probs=0.025)
+
+
+
+inv.plot.range <- 25:40
 
 #plot efficient frontier of total mean-variance
-plot(mean0[3:16], var0[3:16], type="l")
-lines(mean1[3:16], var1[3:16], type="l", col="grey")
-lines(mean3.m[3:16], var3.m[3:16], type="l", col="red")
+ggplot() +
+    geom_path(aes(x=mean0[inv.plot.range], y=var0[inv.plot.range])) + 
+    #geom_path(aes(x=mean1[inv.plot.range], y=var1[inv.plot.range]), color="grey") + 
+    #geom_path(aes(x=mean3.m[inv.plot.range], y=var3.m[inv.plot.range]), color="red") + 
+    #geom_path(aes(x=mean0c[inv.plot.range], y=var0c[inv.plot.range]), color="yellow") + 
+    geom_path(aes(x=mean1c[inv.plot.range], y=var1c[inv.plot.range]), color="darkgrey") + 
+    geom_path(aes(x=mean3c.m[inv.plot.range], y=var3c.m[inv.plot.range]), color="blue") +
+    geom_path(aes(x=mean3c.m.EM[inv.plot.range], y=var3c.m.EM[inv.plot.range]), color="green") 
+    
 
-plot(mean0c[3:16], var0c[3:16], type="l")
-lines(mean1c[3:16], var1c[3:16], type="l", col="darkgrey")
-lines(mean3c.m[3:16], var3c.m[3:16], type="l", col="blue")
+
+plot(mean0[inv.plot.range], var.cmean0[inv.plot.range], type="l")
+lines(mean1c[inv.plot.range], var.cmean1c[inv.plot.range], type="l", col="darkgrey")
+lines(mean3c.m[inv.plot.range], var.cmean3c.m[inv.plot.range], type="l", col="blue")
+
+
 
 
 #expectation-maximization inv
 inv.range[1] - 1 + which.max(mean0[-(1:2)])
-inv.range[1] - 1 +  which.max(mean1[-(1:2)])
-inv.range[1] - 1 +  which.max(mean3.m[-(1:2)])
+inv.range[1] - 1 + which.max(mean1[-(1:2)])
+inv.range[1] - 1 + which.max(mean3.m[-(1:2)])
 inv.range[1] - 1 + which.max(mean0c[-(1:2)])
-inv.range[1] - 1 +  which.max(mean1c[-(1:2)])
-inv.range[1] - 1 +  which.max(mean3c.m[-(1:2)])
+inv.range[1] - 1 + which.max(mean1c[-(1:2)])
+inv.range[1] - 1 + which.max(mean3c.m[-(1:2)])
 
