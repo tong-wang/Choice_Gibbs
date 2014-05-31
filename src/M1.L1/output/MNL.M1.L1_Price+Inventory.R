@@ -1,5 +1,5 @@
 ####
-# Inventory optimization
+# Joint Price & Inventory optimization
 ####
 
 require("plyr")
@@ -70,6 +70,7 @@ posteriors <- data.frame(
 posteriors$posterior.id <- 1:nrow(posteriors)
 colMeans(posteriors)
 
+
 #plot the posteriors
 ggplot(data=posteriors) + geom_density(aes(x=lam0), color="black") + 
     geom_density(aes(x=lam1), color="grey") +
@@ -98,11 +99,10 @@ rm(list=ls()[ls()!="posteriors"])
 
 
 
-
-# price and inventory candidates
+#price candidates
 Cost <- 1.4
-price.range <- 1.5 * Cost
-inv.range <- 10:40
+price.range <- seq(1.5, 1.7, 0.01) * Cost
+inv.range <- 15:25
 
 
 
@@ -144,12 +144,12 @@ load("MNL.M1.L1_Scenario0.EM.RData")
 load("MNL.M1.L1_Scenario3Mc.m.EM.RData")
 
 posteriors.EM <- data.frame(
-        posterior.id = 1,
-        lam0 = tail(z0.EM$lambdas, n=1),
-        lam3c.m = tail(z3Mc.m.EM$lambdas, n=1),
-        beta0 = tail(z0.EM$betas, n=1),
-        beta3c.m = tail(z3Mc.m.EM$betas, n=1)
-    )
+    posterior.id = 1,
+    lam0 = tail(z0.EM$lambdas, n=1),
+    lam3c.m = tail(z3Mc.m.EM$lambdas, n=1),
+    beta0 = tail(z0.EM$betas, n=1),
+    beta3c.m = tail(z3Mc.m.EM$betas, n=1)
+)
 
 num.EM <- 10000
 
@@ -157,6 +157,7 @@ profit0.EM <- ddply(posteriors.EM, .(posterior.id), generate.profit, scenario="0
 profit3c.m.EM <- ddply(posteriors.EM, .(posterior.id), generate.profit, scenario="3c.m", num=num.EM)
 
 ################################################
+
 
 
 
@@ -173,13 +174,13 @@ meanvar3c.m.EM <- ddply(profit3c.m.EM, .(price, inv), summarize, mean=mean(profi
 
 #plot efficient frontier of total mean-variance
 ggplot() +
-    geom_path(data=meanvar0, aes(x=mean, y=var)) + 
-    #geom_path(data=meanvar1, aes(x=mean, y=var), color="grey") + 
-    #geom_path(data=meanvar3.m, aes(x=mean, y=var), color="red") + 
-    #geom_path(data=meanvar0c, aes(x=mean, y=var), color="yellow") + 
-    geom_path(data=meanvar1c, aes(x=mean, y=var), color="darkgrey") + 
-    geom_path(data=meanvar3c.m, aes(x=mean, y=var), color="blue")  +
-    geom_path(data=meanvar3c.m.EM, aes(x=mean, y=var), color="green")  
+    geom_point(data=meanvar0, aes(x=mean, y=var)) + 
+    #geom_point(data=meanvar1, aes(x=mean, y=var), color="grey") + 
+    #geom_point(data=meanvar3.m, aes(x=mean, y=var), color="red") + 
+    #geom_point(data=meanvar0c, aes(x=mean, y=var), color="yellow") + 
+    geom_point(data=meanvar1c, aes(x=mean, y=var), color="darkgrey") + 
+    geom_point(data=meanvar3c.m, aes(x=mean, y=var), color="blue")  +
+    geom_point(data=meanvar3c.m.EM, aes(x=mean, y=var), color="green")  
 
 
 #optimal price-inventory (risk neutral)
@@ -193,7 +194,7 @@ meanvar3c.m.EM[which.max(meanvar3c.m.EM$mean),]
 
 
 #optimal price-inventory (risk averse: mean >= b*var)
-b <- 1
+b <- 1.5
 meanvar0.ra <- meanvar0[meanvar0$mean >= b*meanvar0$var,]
 meanvar1c.ra <- meanvar1c[meanvar1c$mean >= b*meanvar1c$var,]
 meanvar3c.m.ra <- meanvar3c.m[meanvar3c.m$mean >= b*meanvar3c.m$var,]
@@ -225,5 +226,9 @@ var.cmean0 <- ddply(cmeanvar0, .(price, inv), summarize, var=var(mean))
 var.cmean1c <- ddply(cmeanvar1c, .(price, inv), summarize, var=var(mean))
 var.cmean3c.m <- ddply(cmeanvar3c.m, .(price, inv), summarize, var=var(mean))
 var.cmean3c.m.EM <- ddply(cmeanvar3c.m.EM, .(price, inv), summarize, var=var(mean))
+
+
+
+
 
 
