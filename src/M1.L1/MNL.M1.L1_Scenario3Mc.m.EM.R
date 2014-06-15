@@ -39,25 +39,20 @@ negLogLikelihood.beta <- function(beta, data) {
 
 prob.nopurchase.given.demand <- function(nopurchase, demand, traffic, lambda, beta, k, eps1.mu, eps1.sd) {
     
-    if (any(nopurchase<0))
-        return(0)
-    else {
-        
-        beta.coef <- beta[1:L]
-        beta.const <- beta[(L+1):(L+M)]
-        
-        score <- rbind(exp(beta.const + X_Mat[k,] %*% beta.coef), 1)
-        choice.prob <- score/sum(score)
+    beta.coef <- beta[1:L]
+    beta.const <- beta[(L+1):(L+M)]
     
-        return(dmultinom(x=c(demand, nopurchase), prob=choice.prob) * dpois(demand+nopurchase, lambda) * dnorm(x=log(traffic/(demand+nopurchase)), mean=eps1.mu, sd=eps1.sd))
-        
-    }
+    score <- rbind(exp(beta.const + X_Mat[k,] %*% beta.coef), 1)
+    choice.prob <- score/sum(score)
+
+    return(dmultinom(x=c(demand, nopurchase), prob=choice.prob) * dpois(demand+nopurchase, lambda) * dnorm(x=log(traffic/(demand+nopurchase)), mean=eps1.mu, sd=eps1.sd))
+
 }
 
 
 prob.nopurchase_demand.given.sales <- function(nopurchase, demand, sales, traffic, lambda, beta, k, eps1.mu, eps1.sd) {
     
-    if (any(nopurchase<0) | any(demand<sales))
+    if (demand<sales)
         return(0)
     else {
         beta.coef <- beta[1:L]
@@ -103,27 +98,27 @@ sample = function(data, parameters, nrun=100) {
         for (j in 1:K) {
             if (!stockout[j]) {
                 # conditional distribution of nopurchase^k
-                prob <- rep(0, np.max+1)
-                for (np in 0:np.max) {
+                prob <- rep(0, nopurchase.up+1)
+                for (np in 0:nopurchase.up) {
                     prob[np+1] <- prob.nopurchase.given.demand(nopurchase=np, demand=demand[j], traffic=traffic[j], lambda=lambda, beta=beta, k=j, eps1.mu=eps1.mu, eps1.sd=eps1.sd)
                 }
                 prob <- prob / sum(prob)
                 
                 # calculate expectation of nopurchase^k
-                nopurchase[j] <- (0:np.max) %*% prob
+                nopurchase[j] <- (0:nopurchase.up) %*% prob
             } else {
                 # conditional distribution of nopurchase^k
-                prob <- matrix(0, np.max+1, d.max+1)
-                for (np in 0:np.max) {
-                    for (d in 0:d.max) {
+                prob <- matrix(0, nopurchase.up+1, demand.up+1)
+                for (np in 0:nopurchase.up) {
+                    for (d in 0:demand.up) {
                         prob[np+1, d+1] <- prob.nopurchase_demand.given.sales(nopurchase=np, demand=d, sales=sales[j], traffic=traffic[j], lambda=lambda, beta=beta, k=j, eps1.mu=eps1.mu, eps1.sd=eps1.sd)
                     }
                 }
                 prob <- prob / sum(prob)
                 
                 # calculate expectation of nopurchase^k
-                nopurchase[j] <- (0:np.max) %*% rowSums(prob)
-                demand[j] <- (0:d.max) %*% colSums(prob)
+                nopurchase[j] <- (0:nopurchase.up) %*% rowSums(prob)
+                demand[j] <- (0:demand.up) %*% colSums(prob)
             }
         }
         
@@ -167,11 +162,13 @@ sample = function(data, parameters, nrun=100) {
 
 
 ## initial sampling input
-np.max <- 100 # upper limit used in integration
-d.max <- 100 # upper limit used in integration
+# nopurchase in range [0, nopurchase.up], this is used as integration limits
+nopurchase.up <- 100
+demand.up <- 100
+
 param0 <- list(beta=c(-1, 1), lambda=30, eps1.mu=epsilon1.mean, eps1.sd=1)
 
-z3Mc.m.EM <- sample(data=observation3Mc.m, parameters=param0, nrun=100)
+z3Mc.m.EM <- sample(data=observation3Mc.m, parameters=param0, nrun=500)
 
 save(z3Mc.m.EM, observation3Mc.m, file=paste0(scenarioName, ".RData"))
 

@@ -42,7 +42,7 @@ logpost.betaT <- function(betaT, data) {
 
 logpost.nopurchase <- function(nopurchase, demand, lambda, beta, k) {
     
-    if (any(nopurchase<0))
+    if ((nopurchase < nopurchase.low) | (nopurchase > nopurchase.up))
         return(-Inf)
     else {
         beta.coef <- beta[1:L]
@@ -66,7 +66,7 @@ logpost.demand_nopurchase <- function(x, sales, lambda, beta, k) {
     demand <- x[1]
     nopurchase <- x[2]
     
-    if (any(nopurchase<0) | any(demand<sales))
+    if ((nopurchase < nopurchase.low) | (nopurchase > nopurchase.up) | (demand < sales) | (demand > demand.up))
         return(-Inf)
     else {
         beta.coef <- beta[1:L]
@@ -179,6 +179,14 @@ beta.sg <- 100*diag(L+M)
 # lambda ~ Gamma(lambda.alpha, lambda.beta)
 lambda.alpha <- 0.005
 lambda.beta <- 0.0001
+
+# nopurchase ~ Uniform[nopurchase.low, nopurchase.up]
+nopurchase.low <- 0
+nopurchase.up <- 100
+
+# demand ~ Uniform[demand.low, demand.up]
+demand.low <- 0
+demand.up <- 100
 
 
 ## initial sampling input

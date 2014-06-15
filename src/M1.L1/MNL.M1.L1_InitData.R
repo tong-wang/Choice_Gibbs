@@ -17,7 +17,7 @@ setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L1")
 ### Known parameters
 M <- 1 # number of alternatives (not including the no-purchase option)
 L <- 1 # number of covariates (not including dummy for constant)
-K <- 90 # number of periods
+K <- 30 # number of periods
 
 
 ## Generate X_Mat, the covariates matrix
