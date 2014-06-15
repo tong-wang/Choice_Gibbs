@@ -69,11 +69,11 @@ NoPurchase <- choice.mat[M+1,]
 
 ### simulate traffic data with different accuracy
 epsilon1.mean <- 3
-epsilon1.xl <- rnorm(K, mean=epsilon1.mean, sd=1)
-epsilon1.l <- rnorm(K, mean=epsilon1.mean, sd=0.5)
-epsilon1.m <- rnorm(K, mean=epsilon1.mean, sd=0.3)
-epsilon1.h <- rnorm(K, mean=epsilon1.mean, sd=0.1)
-epsilon1.xh <- rnorm(K, mean=epsilon1.mean, sd=0.05)
+epsilon1.xl <- rnorm(K, mean=epsilon1.mean, sd=0.5) # rho = 0.25
+epsilon1.l <- rnorm(K, mean=epsilon1.mean, sd=0.3) # rho = 0.4
+epsilon1.m <- rnorm(K, mean=epsilon1.mean, sd=0.2) # rho = 0.6
+epsilon1.h <- rnorm(K, mean=epsilon1.mean, sd=0.1) # rho = 0.8
+epsilon1.xh <- rnorm(K, mean=epsilon1.mean, sd=0.05) # rho = 0.95
 
 TrafficM.xl <- exp(epsilon1.xl) * colSums(choice.mat) 
 TrafficM.l <- exp(epsilon1.l) * colSums(choice.mat) 
@@ -81,6 +81,12 @@ TrafficM.m <- exp(epsilon1.m) * colSums(choice.mat)
 TrafficM.h <- exp(epsilon1.h) * colSums(choice.mat) 
 TrafficM.xh <- exp(epsilon1.xh) * colSums(choice.mat) 
 
+#check the correlation between N and Traffic
+cor(N, TrafficM.xh)
+cor(N, TrafficM.h)
+cor(N, TrafficM.m)
+cor(N, TrafficM.l)
+cor(N, TrafficM.xl)
 
 
 rm(k)
