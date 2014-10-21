@@ -10,7 +10,7 @@ rm(list=ls(all.names=TRUE))
 
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L1")
+setwd("~/Dropbox/RCode/Choice_Gibbs/src/M1.L1")
 
 
 

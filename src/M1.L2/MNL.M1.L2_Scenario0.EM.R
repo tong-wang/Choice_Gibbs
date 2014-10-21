@@ -4,7 +4,7 @@
 ####
 
 Sys.setenv(LANG = "en")
-setwd("~/Dropbox/RCode/Choice_Gibbs.git/src/M1.L2")
+setwd("~/Dropbox/RCode/Choice_Gibbs/src/M1.L2")
 
 
 
