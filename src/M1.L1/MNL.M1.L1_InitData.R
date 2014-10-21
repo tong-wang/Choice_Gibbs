@@ -69,11 +69,12 @@ NoPurchase <- choice.mat[M+1,]
 
 ### simulate traffic data with different accuracy
 epsilon1.mean <- 3
-epsilon1.xl <- rnorm(K, mean=epsilon1.mean, sd=0.5) # rho = 0.25
-epsilon1.l <- rnorm(K, mean=epsilon1.mean, sd=0.3) # rho = 0.4
-epsilon1.m <- rnorm(K, mean=epsilon1.mean, sd=0.2) # rho = 0.6
-epsilon1.h <- rnorm(K, mean=epsilon1.mean, sd=0.1) # rho = 0.8
-epsilon1.xh <- rnorm(K, mean=epsilon1.mean, sd=0.05) # rho = 0.95
+epsilon1.noise <- rnorm(K)
+epsilon1.xl <- epsilon1.mean + epsilon1.noise * 0.5 # rho = 0.25
+epsilon1.l <- epsilon1.mean + epsilon1.noise * 0.3 # rho = 0.4
+epsilon1.m <- epsilon1.mean + epsilon1.noise * 0.2 # rho = 0.6
+epsilon1.h <- epsilon1.mean + epsilon1.noise * 0.1 # rho = 0.8
+epsilon1.xh <- epsilon1.mean + epsilon1.noise * 0.05 # rho = 0.95
 
 TrafficM.xl <- exp(epsilon1.xl) * colSums(choice.mat) 
 TrafficM.l <- exp(epsilon1.l) * colSums(choice.mat) 
