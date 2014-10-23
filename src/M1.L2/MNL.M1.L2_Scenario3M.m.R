@@ -44,7 +44,7 @@ logpost.betaT <- function(betaT, data) {
 
 logpost.nopurchase <- function(nopurchase, demand, traffic, lambda, beta, k, eps1.mu, eps1.sd) {
     
-    if (any(nopurchase<0))
+    if ((nopurchase < nopurchase.low) | (nopurchase > nopurchase.up))
         return(-Inf)
     else {
         beta.coef <- beta[1:L]
@@ -160,6 +160,11 @@ lambda.beta <- 0.0001
 # prior of the precision of epsilon
 eps1.pr.alpha0 <- 0.0000001 #0.0001
 eps1.pr.beta0 <- 0.000000001 #0.0001
+
+# nopurchase ~ Uniform[nopurchase.low, nopurchase.up]
+nopurchase.low <- 0
+nopurchase.up <- 100
+
 
 ## initial sampling input
 param0 <- list(beta=c(-1, 1, 1), eps1.sd=eps1.pr.alpha0/eps1.pr.beta0, nopurchase=rep(10, K))
