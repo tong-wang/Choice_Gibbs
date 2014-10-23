@@ -42,7 +42,7 @@ logpost.betaT <- function(betaT, data) {
 
 logpost.nopurchase <- function(nopurchase, sales, rest, lambda, beta, k) {
 
-    if ((nopurchase < nopurchase.low) | (nopurchase > rest))
+    if ((nopurchase < nopurchase.low) | (nopurchase > nopurchase.up) | (nopurchase > rest))
         return(-Inf)
     else {
         beta.coef <- beta[1:L]

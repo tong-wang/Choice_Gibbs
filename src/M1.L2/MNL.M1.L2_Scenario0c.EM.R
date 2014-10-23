@@ -37,7 +37,7 @@ negLogLikelihood.beta <- function(beta, data) {
 
 prob.nopurchase.given.demand <- function(nopurchase, sales, rest, lambda, beta, k) {
     
-    if (any(nopurchase<0) | any(nopurchase>rest))
+    if (nopurchase > rest)
         return(0)
     else {
         beta.coef <- beta[1:L]
@@ -79,15 +79,15 @@ sample = function(data, parameters, nrun=100) {
         for (j in which(stockout)) {
             
             # conditional distribution of nopurchase^k
-            prob <- rep(0, np.max+1)
-            for (np in 0:np.max) {
+            prob <- rep(0, nopurchase.up+1)
+            for (np in 0:nopurchase.up) {
                 prob[np+1] <- prob.nopurchase.given.demand(nopurchase=np, sales=sales[j], rest=rest[j], lambda=lambda, beta=beta, k=j) 
             }
             prob <- prob / sum(prob)
             
             # calculate expectation of nopurchase^k
-            #nopurchase[j] <- round((0:np.max) %*% prob)
-            nopurchase[j] <- (0:np.max) %*% prob
+            #nopurchase[j] <- round((0:nopurchase.up) %*% prob)
+            nopurchase[j] <- (0:nopurchase.up) %*% prob
         }
         
         
@@ -122,7 +122,9 @@ sample = function(data, parameters, nrun=100) {
 
 
 ## initial sampling input
-np.max <- 100 # upper limit used in integration
+# nopurchase in range [0, nopurchase.up], this is used as integration limits
+nopurchase.up <- 100
+
 param0 <- list(beta=c(-1, 1, 1), lambda=30)
 
 z0c.EM <- sample(data=observation0c, parameters=param0, nrun=100)
